@@ -30,7 +30,7 @@ rule combine_contigs_report:
 
 rule combine_contigs:
     input:
-        expand("{sample}/{sample}_contigs.fasta",sample=SAMPLES)
+        expand("{sample}/assembly/{sample}_prefilter_contigs.fasta",sample=SAMPLES)
     output:
         combined_contigs=temp("{folder}/combined_contigs_oldnames.fasta"),
         cluster_stats="{folder}/combined_contigs_kmerfreq.txt",
