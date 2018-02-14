@@ -105,26 +105,6 @@ rule combined_contigs_stats:
         "stats.sh in={input} format=3 -Xmx{resources.mem}G > {output}"
 
 
-rule call_genes:
-    input:
-        COMBINED_CONTIGS
-    output:
-        fna="combined/annotation/prodigal/predicted_genes.fna",
-        faa="combined/annotation/prodigal/predicted_genes.faa",
-        gff="combined/annotation/prodigal/predicted_genes.gff"
-
-    conda:
-        "%s/gene_catalog.yaml" % CONDAENV
-    log:
-        "logs/predict_genes.log"
-    threads:
-        1
-    shell:
-        """
-            prodigal -i {input} -o {output.gff} -d {output.fna} -a {output.faa} -p meta -f gff 2> >(tee {log})
-        """
-
-
 rule align_reads_to_combined_contigs:
     input:
         unpack(get_quality_controlled_reads),
@@ -202,6 +182,10 @@ rule pileup_combined_contigs:
             -Xmx{resources.mem}G covstats={output.covstats} \
             hist={output.covhist} basecov={output.basecov} physcov secondary={params.pileup_secondary} bincov={output.bincov} 2>> {log}
         """
+
+def get_bam_combined_contigs_alignemnt(wildcards):
+    return "contigs/sequence_alignment_combined_contigs/{sample}/{sample}.bam".format(**wildcards)
+
 
 
 rule store_bam:
@@ -328,63 +312,80 @@ if config.get("perform_genome_binning", True):
 
 else:
 
-    rule counts_genes_per_sample:
+    rule predict_genes:
         input:
-            gtf = "combined/annotation/prodigal/predicted_genes.gtf",
-            bam = "{folder}/sequence_alignment_{Reference}/{sample}/{sample}.bam"
+            COMBINED_CONTIGS
         output:
-            summary = "{folder}/sequence_alignment_{Reference}/{sample}/feature_counts/{sample}_counts.txt.summary",
-            counts = "{folder}/sequence_alignment_{Reference}/{sample}/feature_counts/{sample}_counts.txt"
-        params:
-            min_read_overlap = config.get("minimum_region_overlap", MINIMUM_REGION_OVERLAP),
-            paired_only= "-B" if config.get('contig_map_paired_only',CONTIG_MAP_PAIRED_ONLY) else "",
-            paired_mode = "-p" if PAIRED_END else "",
-            multi_mapping = "-M --fraction" if config.get("contig_count_multi_mapped_reads",CONTIG_COUNT_MULTI_MAPPED_READS) else "--primary",
-            feature_counts_allow_overlap = "-O --fraction" if config.get("feature_counts_allow_overlap", FEATURE_COUNTS_ALLOW_OVERLAP) else ""
-        log:
-            "{sample}/logs/counts_per_region.log"
+            fna="annotations/metagenome/predicted_genes/genes.fna",
+            faa="annotations/metagenome/predicted_genes/genes.faa",
+            gff="annotations/metagenome/predicted_genes/genes.gff"
+
         conda:
-            "%s/required_packages.yaml" % CONDAENV
+            "%s/gene_catalog.yaml" % CONDAENV
+        log:
+            "logs/annotations/predict_genes.log"
         threads:
-            config.get("threads", 1)
+            1
         shell:
-            """featureCounts \
-                    --minOverlap {params.min_read_overlap} \
-                    {params.paired_mode} \
-                    {params.paired_only} \
-                   -F GTF \
-                   -T {threads} \
-                   {params.multi_mapping} \
-                   {params.feature_counts_allow_overlap} \
-                   -t CDS \
-                   -g ID \
-                   -a {input.gtf} \
-                   -o {output.counts} \
-                   {input.bam} 2> {log}"""
+            """
+                prodigal -i {input} -o {output.gff} -d {output.fna} -a {output.faa} -p meta -f gff 2> >(tee {log})
+            """
 
-    rule combine_gene_counts:
-        input:
-            expand("{folder}/sequence_alignment_{Reference}/{sample}/feature_counts/{sample}_counts.txt",
-                sample=SAMPLES,Reference='combined_contigs',folder=combined_contigs_folder)
-        output:
-            'contigs/combined_gene_counts.tsv',
-            'contigs/combined_gene_info.tsv'
-        run:
-            import pandas as pd
-            import os
-            C= {}
+rule counts_genes:
+    input:
+        gtf = "annotations/{MAG}/predicted_genes/genes.gtf",
+        bam = unpack(get_bam_combined_contigs_alignemnt)
+    output:
+        summary = "annotations/{MAG}/feature_counts/{sample}_counts.txt.summary",
+        counts = "annotations/{MAG}/feature_counts/{sample}_counts.txt"
+    params:
+        min_read_overlap = config.get("minimum_region_overlap", MINIMUM_REGION_OVERLAP),
+        paired_only= "-B" if config.get('contig_map_paired_only',CONTIG_MAP_PAIRED_ONLY) else "",
+        paired_mode = "-p" if PAIRED_END else "",
+        multi_mapping = "-M --fraction" if config.get("contig_count_multi_mapped_reads",CONTIG_COUNT_MULTI_MAPPED_READS) else "--primary",
+        feature_counts_allow_overlap = "-O --fraction" if config.get("feature_counts_allow_overlap", FEATURE_COUNTS_ALLOW_OVERLAP) else ""
+    log:
+        "{sample}/logs/counts_per_region.log"
+    conda:
+        "%s/required_packages.yaml" % CONDAENV
+    threads:
+        config.get("threads", 1)
+    shell:
+        """featureCounts \
+                --minOverlap {params.min_read_overlap} \
+                {params.paired_mode} \
+                {params.paired_only} \
+               -F GTF \
+               -T {threads} \
+               {params.multi_mapping} \
+               {params.feature_counts_allow_overlap} \
+               -t CDS \
+               -g ID \
+               -a {input.gtf} \
+               -o {output.counts} \
+               {input.bam} 2> {log}"""
 
+rule combine_gene_counts:
+    input:
+        expand("annotations/{{MAG}}/feature_counts/{sample}_counts.txt",
+            sample=SAMPLES)
+    output:
+        'annotations/{MAG}/feature_counts/gene_counts.tsv',
+        'annotations/{MAG}/feature_counts/gene_info.tsv'
+    run:
+        import pandas as pd
+        import os
+        C= {}
 
+        for file in input:
+            D= pd.read_table(file,index_col=0,comment='#')
+            # contigs/sequence_alignment_combined_contigs/S1/S1.bam
+            sample= D.columns[-1].split('/')[-2]
+            C[sample]= D.iloc[:,-1]
+        C= pd.DataFrame(C)
+        C.to_csv(output[0],sep='\t')
 
-            for file in input:
-                D= pd.read_table(file,index_col=0,comment='#')
-                # contigs/sequence_alignment_combined_contigs/S1/S1.bam
-                sample= D.columns[-1].split('/')[-2]
-                C[sample]= D.iloc[:,-1]
-            C= pd.DataFrame(C)
-            C.to_csv(output[0],sep='\t')
-
-            D.iloc[:,:-1].to_csv(output[1],sep='\t')
+        D.iloc[:,:-1].to_csv(output[1],sep='\t')
 
 
 
@@ -393,7 +394,7 @@ else:
 # # HACK: treat 'combined' as a sample name.
 #
 localrules: merge_combined_contig_tables
-rule merge_combined_contig_tables:
+rule merge_combined_contig_tables
     input:
         prokka = "{sample}/annotation/prokka/{sample}_plus.tsv".format(sample='combined'),
         refseq = "{sample}/annotation/refseq/{sample}_tax_assignments.tsv".format(sample='combined'),
