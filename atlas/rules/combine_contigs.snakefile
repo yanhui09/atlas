@@ -10,7 +10,7 @@ combined_contigs_folder='contigs'
 
 #### combine contigs
 config['perform_genome_binning']= False
-
+MAGs=['metagenome']
 
 
 rule combine_contigs_report:
@@ -20,12 +20,9 @@ rule combine_contigs_report:
         median_coverage="contigs/combined_median_coverage.tsv",
         gc_stats = "contigs/combined_contigs_stats_gc.tsv",
         binned_coverage = "contgs/combined_coverage_binned.tsv.gz",
-        # manly used when no binning is performed
-
-
-        # annotation= "contigs/annotations.txt",
+        gene_counts= expand('annotations/{MAG}/gene_counts.tsv',MAG=MAGs),
+        annotations= expand("annotations/{MAG}/annotations.txt",MAG=MAGs)
         #concoct="{folder}/binning/{file}".format(folder=combined_contigs_folder,file='means_gt2500.csv')
-        #bam=expand("{folder}/sequence_alignment_{Reference}/{sample}/{sample}.bam",sample=SAMPLES,Reference='combined_contigs',folder=combined_contigs_folder),
     output:
         touch("Combined_contigs_done")
 
@@ -208,11 +205,6 @@ rule store_bam:
         """
 
 
-
-
-
-
-
 localrules: combine_coverages_of_combined_contigs, combine_bined_coverages_of_combined_contigs
 
 rule combine_coverages_of_combined_contigs:
@@ -269,7 +261,7 @@ rule combine_bined_coverages_of_combined_contigs:
         binCov.to_csv(output[0],sep='\t',compression='gzip')
 
 
-#TODO parameters are not generalized
+#TODO detect read length automatically.
 if config.get("perform_genome_binning", True):
   if config['combine_contigs_params']['binner']=='concoct':
 
@@ -308,6 +300,8 @@ if config.get("perform_genome_binning", True):
               """
   else:
         raise NotImplementedError("We don't have implemented the binning method: {}\ntry 'concoct'".format(config['combine_contigs_params']['binner']))
+
+### GENE prediction
 
 if config['gene_predicter']=='prokka':
 
@@ -511,16 +505,6 @@ rule merge_sample_tables:
              {input.refseq} \
              {output}"
 
-rule finalize_annotation:
-    input:
-        'annotations/{MAG}/feature_counts/gene_counts.tsv',
-        "annotations/{MAG}/annotations.txt"
-    output:
-        touch('annotation_done')
-
-
-
-
 rule counts_genes:
     input:
         gtf = "annotations/{MAG}/predicted_genes/genes.gtf",
@@ -560,7 +544,7 @@ rule combine_gene_counts:
         expand("annotations/{{MAG}}/feature_counts/{sample}_counts.txt",
             sample=SAMPLES)
     output:
-        'annotations/{MAG}/feature_counts/gene_counts.tsv',
+        'annotations/{MAG}/gene_counts.tsv',
         'annotations/{MAG}/feature_counts/gene_info.tsv'
     run:
         import pandas as pd
@@ -576,26 +560,3 @@ rule combine_gene_counts:
         C.to_csv(output[0],sep='\t')
 
         D.iloc[:,:-1].to_csv(output[1],sep='\t')
-
-
-
-
-
-
-
-# # TODO: predict genes on all contigs
-# # HACK: treat 'combined' as a sample name.
-#
-localrules: merge_combined_contig_tables
-rule merge_combined_contig_tables
-    input:
-        prokka = "{sample}/annotation/prokka/{sample}_plus.tsv".format(sample='combined'),
-        refseq = "{sample}/annotation/refseq/{sample}_tax_assignments.tsv".format(sample='combined'),
-        #counts = "{sample}/annotation/feature_counts/{sample}_counts.txt".format(sample='combined') # runMaxbin not suported as there is not one profile, but one per sample
-    output:
-        "{sample}/{sample}_annotations.txt".format(sample='combined')
-    shell:
-        "  atlas merge-tables \
-             {input.prokka} \
-             {input.refseq} \
-             {output}"
