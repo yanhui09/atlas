@@ -135,6 +135,7 @@ maxbin_prob_threshold: 0.9
 ########################
 # Annotation
 ########################
+gene_predicter: prokka                      # [prokka,prodigal], when not running on genome bins use prodigal, which is faster but has less annotations
 translation_table: 11
 diamond_db: /path/to/databases/refseq.dmnd
 diamond_run_mode: fast

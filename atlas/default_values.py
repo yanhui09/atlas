@@ -182,6 +182,6 @@ def make_default_config():
                          binner='concoct')
     conf['concoct']= {"Niterations":500} #'Nexpected_clusters', 'read_length'
 
-
+    conf['gene_predicter'] = 'prokka'
 
     return conf

@@ -8,15 +8,20 @@ from default_values import *
 
 combined_contigs_folder='contigs'
 
+#### combine contigs
+config['perform_genome_binning']= False
+
+
+
 rule combine_contigs_report:
     input:
         combined_contigs= COMBINED_CONTIGS,
         combined_contigs_stats="contigs/combined_contigs_stats.txt",
-        median_coverage="{folder}/sequence_alignment_{Reference}/combined_median_coverage.tsv".format(Reference='combined_contigs',folder=combined_contigs_folder),
-        gc_stats = "{folder}/combined_contigs_stats_gc.tsv".format(folder=combined_contigs_folder),
-        binned_coverage = "{folder}/sequence_alignment_{Reference}/combined_coverage_binned.tsv.gz".format(Reference='combined_contigs',folder=combined_contigs_folder),
+        median_coverage="contigs/combined_median_coverage.tsv",
+        gc_stats = "contigs/combined_contigs_stats_gc.tsv",
+        binned_coverage = "contgs/combined_coverage_binned.tsv.gz",
         # manly used when no binning is performed
-        gene_counts= 'contigs/combined_gene_counts.tsv', gene_info= 'contigs/combined_gene_info.tsv',
+
 
         # annotation= "contigs/annotations.txt",
         #concoct="{folder}/binning/{file}".format(folder=combined_contigs_folder,file='means_gt2500.csv')
@@ -24,9 +29,7 @@ rule combine_contigs_report:
     output:
         touch("Combined_contigs_done")
 
-#### combine contigs
 
-config['perform_genome_binning']= False
 
 rule combine_contigs:
     input:
@@ -266,10 +269,6 @@ rule combine_bined_coverages_of_combined_contigs:
         binCov.to_csv(output[0],sep='\t',compression='gzip')
 
 
-
-
-
-
 #TODO parameters are not generalized
 if config.get("perform_genome_binning", True):
   if config['combine_contigs_params']['binner']=='concoct':
@@ -308,28 +307,219 @@ if config.get("perform_genome_binning", True):
                   --iterations {params.niterations}
               """
   else:
-      raise NotImplementedError("We don't have implemented the binning method: {}\ntry 'concoct'".format(config['combine_contigs_params']['binner']))
+        raise NotImplementedError("We don't have implemented the binning method: {}\ntry 'concoct'".format(config['combine_contigs_params']['binner']))
 
-else:
+if config['gene_predicter']=='prokka':
 
     rule predict_genes:
         input:
-            COMBINED_CONTIGS
+            "annotations/{MAG}/{MAG}_contigs.fasta"
         output:
-            fna="annotations/metagenome/predicted_genes/genes.fna",
-            faa="annotations/metagenome/predicted_genes/genes.faa",
-            gff="annotations/metagenome/predicted_genes/genes.gff"
+            discrepancy = "annotations/{MAG}/prokka/{MAG}.err",
+            faa = "annotations/{MAG}/predicted_genes/genes.faa",
+            ffn = "annotations/{MAG}/predicted_genes/genes.ffn",
+            fna = "annotations/{MAG}/predicted_genes/genes.fna",
+            fsa = "annotations/{MAG}/predicted_genes/genes.fsa",
+            gff = "annotations/{MAG}/predicted_genes/genes.gff",
+            log = "annotations/{MAG}/predicted_genes/genes.log",
+            tbl = "annotations/{MAG}/predicted_genes/genes.tbl",
+            tsv = "annotations/{MAG}/predicted_genes/genes.tsv",
+            txt = "annotations/{MAG}/predicted_genes/genes.txt"
+        benchmark:
+            "logs/benchmarks/prokka/{MAG}.txt"
+        params:
+            outdir = lambda wc, output: os.path.dirname(output.faa),
+            kingdom = config.get("prokka_kingdom", PROKKA_KINGDOM)
+        conda:
+            "%s/required_packages.yaml" % CONDAENV
+        threads:
+            config.get("threads", 1)
+        shell:
+            """prokka --outdir {params.outdir} \
+                   --force \
+                   --prefix {wildcards.sample} \
+                   --locustag {wildcards.sample} \
+                   --kingdom {params.kingdom} \
+                   --metagenome \
+                   --cpus {threads} \
+                   {input}"""
+elif config['gene_predicter']=='prodigal':
+    rule predict_genes:
+        input:
+            "annotations/{MAG}/{MAG}_contigs.fasta"
+        output:
+            fna="annotations/{MAG}/predicted_genes/genes.fna",
+            faa="annotations/{MAG}/predicted_genes/genes.faa",
+            gff="annotations/{MAG}/predicted_genes/genes.gff"
 
         conda:
             "%s/gene_catalog.yaml" % CONDAENV
         log:
-            "logs/annotations/predict_genes.log"
+            "logs/benchmarks/prodigal/{MAG}.txt"
         threads:
             1
         shell:
             """
                 prodigal -i {input} -o {output.gff} -d {output.fna} -a {output.faa} -p meta -f gff 2> >(tee {log})
             """
+else:
+    raise NotADirectoryError("There is no genepredicter iplemented for: {} try one of ['prodigal','prokka']".format(config['gene_predicter']))
+
+
+rule update_gene_table:
+    input:
+        "annotations/{MAG}/predicted_genes/gene.gff"
+    output:
+        "annotations/{MAG}/predicted_genes/gene_plus.tsv"
+    shell:
+        """atlas gff2tsv {input} {output}"""
+
+
+# Taxonomy
+
+rule MAG_run_diamond_blastp:
+    input:
+        fasta = "annotations/{MAG}/predicted_genes/genes.faa",
+        db = config["diamond_db"]
+    output:
+        "annotations/{MAG}/refseq/hits.tsv"
+    benchmark:
+        "logs/benchmarks/run_diamond_blastp/{MAG}.txt"
+    params:
+        tmpdir = "--tmpdir %s" % TMPDIR if TMPDIR else "",
+        top_seqs = config.get("diamond_top_seqs", DIAMOND_TOP_SEQS),
+        e_value = config.get("diamond_e_value", DIAMOND_E_VALUE),
+        min_identity = config.get("diamond_min_identity", DIAMOND_MIN_IDENTITY),
+        query_cover = config.get("diamond_query_coverage", DIAMOND_QUERY_COVERAGE),
+        gap_open = config.get("diamond_gap_open", DIAMOND_GAP_OPEN),
+        gap_extend = config.get("diamond_gap_extend", DIAMOND_GAP_EXTEND),
+        block_size = config.get("diamond_block_size", DIAMOND_BLOCK_SIZE),
+        index_chunks = config.get("diamond_index_chunks", DIAMOND_INDEX_CHUNKS),
+        run_mode = "--more-sensitive" if not config.get("diamond_run_mode", "") == "fast" else ""
+    conda:
+        "%s/required_packages.yaml" % CONDAENV
+    threads:
+        config.get("threads", 1)
+    shell:
+        """diamond blastp \
+               --threads {threads} \
+               --outfmt 6 \
+               --out {output} \
+               --query {input.fasta} \
+               --db {input.db} \
+               --top {params.top_seqs} \
+               --evalue {params.e_value} \
+               --id {params.min_identity} \
+               --query-cover {params.query_cover} \
+               {params.run_mode} \
+               --gapopen {params.gap_open} \
+               --gapextend {params.gap_extend} \
+               {params.tmpdir} \
+               --block-size {params.block_size} \
+               --index-chunks {params.index_chunks}"""
+
+
+rule MAG_add_contig_metadata:
+    input:
+        hits = "annotations/{MAG}/refseq/hits.tsv",
+        gff = "annotations/{MAG}/predicted_genes/genes.gff"
+    output:
+        temp("annotations/{MAG}/refseq/hits_plus.tsv")
+    shell:
+        "atlas munge-blast {input.hits} {input.gff} {output}"
+
+
+rule MAG_sort_munged_blast_hits:
+    # ensure blast hits are grouped by contig, ORF, and then decreasing by bitscore
+    input:
+        "annotations/{MAG}/refseq/hits_plus.tsv"
+    output:
+        "annotations/{MAG}/refseq/hits_plus_sorted.tsv"
+    shell:
+        "sort -k1,1 -k2,2 -k13,13rn {input} > {output}"
+
+
+rule MAG_parse_blastp:
+    # assign a taxonomy to contigs using the consensus of the ORF assignments
+    input:
+        "annotations/{MAG}/refseq/hits_plus_sorted.tsv"
+    output:
+        "annotations/{MAG}/refseq/tax_assignments.tsv"
+    params:
+        namemap = config["refseq_namemap"],
+        treefile = config["refseq_tree"],
+        summary_method = config.get("summary_method", SUMMARY_METHOD),
+        aggregation_method = config.get("aggregation_method", AGGREGATION_METHOD),
+        majority_threshold = config.get("majority_threshold", MAJORITY_THRESHOLD),
+        min_identity = config.get("diamond_min_identity", DIAMOND_MIN_IDENTITY),
+        min_bitscore = config.get("min_bitscore", MIN_BITSCORE),
+        min_length = config.get("min_length", MIN_LENGTH),
+        max_evalue = config.get("diamond_e_value", DIAMOND_E_VALUE),
+        max_hits = config.get("max_hits", MAX_HITS),
+        top_fraction = (100 - config.get("diamond_top_seqs", 5)) * 0.01
+    shell:
+        """atlas refseq \
+               --summary-method {params.summary_method} \
+               --aggregation-method {params.aggregation_method} \
+               --majority-threshold {params.majority_threshold} \
+               --min-identity {params.min_identity} \
+               --min-bitscore {params.min_bitscore} \
+               --min-length {params.min_length} \
+               --max-evalue {params.max_evalue} \
+               --max-hits {params.max_hits} \
+               --top-fraction {params.top_fraction} \
+               {input} \
+               {params.namemap} \
+               {params.treefile} \
+               {output}"""
+
+# if config.get("perform_genome_binning", True):
+#     rule merge_sample_tables:
+#         input:
+#             prokka = "{sample}/annotation/prokka/{sample}_plus.tsv",
+#             refseq = "annotations/{MAG}/refseq/tax_assignments.tsv",#
+#             counts = "{sample}/annotation/feature_counts/{sample}_counts.txt",
+#             completeness = "{sample}/genomic_bins/checkm/completeness.tsv",
+#             taxonomy = "{sample}/genomic_bins/checkm/taxonomy.tsv"
+#         output:
+#             "{sample}/{sample}_annotations.txt"
+#         params:
+#             fastas = lambda wc: " --fasta ".join(glob("{sample}/genomic_bins/{sample}.*.fasta".format(sample=wc.sample)))
+#         shell:
+#             "atlas merge-tables \
+#                  --counts {input.counts} \
+#                  --completeness {input.completeness} \
+#                  --taxonomy {input.taxonomy} \
+#                  --fasta {params.fastas} \
+#                  {input.prokka} \
+#                  {input.refseq} \
+#                  {output}"
+#
+#
+# else:
+rule merge_sample_tables:
+    input:
+        prokka = "annotations/{MAG}/prokka/prokka_plus.tsv",
+        refseq = "annotations/{MAG}/refseq/tax_assignments.tsv",
+        counts = "annotations/{MAG}/feature_counts/gene_info.tsv"
+    output:
+        "annotations/{MAG}/annotations.txt"
+    shell:
+        "atlas merge-tables \
+             --counts {input.counts} \
+             {input.prokka} \
+             {input.refseq} \
+             {output}"
+
+rule finalize_annotation:
+    input:
+        'annotations/{MAG}/feature_counts/gene_counts.tsv',
+        "annotations/{MAG}/annotations.txt"
+    output:
+        touch('annotation_done')
+
+
+
 
 rule counts_genes:
     input:
@@ -386,6 +576,9 @@ rule combine_gene_counts:
         C.to_csv(output[0],sep='\t')
 
         D.iloc[:,:-1].to_csv(output[1],sep='\t')
+
+
+
 
 
 
