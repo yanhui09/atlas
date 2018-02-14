@@ -87,6 +87,18 @@ minimum_percent_covered_bases: 40
 minimum_mapped_reads: 0
 minimum_contig_length: 2200              # after filtering
 
+########################
+# Combine _contigs
+########################
+
+combine_contigs: true                     # Combine contigs from different samples if they overlap according to the below contigs
+combine_contigs_params:                   # for more information see dedupe from the bbmap package
+  min_overlap: 200
+  max_substitutions: 4
+  remove_cycles: true
+  trim_contradictions: false
+  binner: concoct                         # ['concoct'] Bin contigs acccording to abundance profiles, only if 'perform_genome_binning: true'
+
 
 ########################
 # Quantification

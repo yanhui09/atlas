@@ -173,4 +173,13 @@ def make_default_config():
     conf["aggregation_method"] = AGGREGATION_METHOD
     conf["majority_threshold"] = MAJORITY_THRESHOLD
 
+    conf["combine_contigs"] = True
+    conf["combine_contigs_params"]=dict(min_overlap = 200,
+                         max_substitutions=4,
+                         dont_allow_N=True,
+                         remove_cycles=True,
+                         trim_contradictions=True, #False
+                         binner='concoct')
+
+
     return conf

@@ -22,16 +22,6 @@ rule combine_contigs_report:
     output:
         touch("Combined_contigs_done")
 
-  conf["combine_contigs"] = True
-  config["combine_contigs_params"]=dict(min_overlap = 200,
-                                 max_substitutions=4,
-                                 dont_allow_N=True,
-                                 remove_cycles=True,
-                                 trim_contradictions=True, #False
-                                 binner='concoct'
-                                 )
-
-
 #### combine contigs
 
 config['perform_genome_binning']= False
