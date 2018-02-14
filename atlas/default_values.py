@@ -180,6 +180,8 @@ def make_default_config():
                          remove_cycles=True,
                          trim_contradictions=True, #False
                          binner='concoct')
+    conf['concoct']= {"Niterations":500} #'Nexpected_clusters', 'read_length'
+
 
 
     return conf

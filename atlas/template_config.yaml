@@ -100,6 +100,11 @@ combine_contigs_params:                   # for more information see dedupe from
   binner: concoct                         # ['concoct'] Bin contigs acccording to abundance profiles, only if 'perform_genome_binning: true'
 
 
+### !!!!! ####
+concoct:                                  # Adapt theese parameters if you are using concoct
+  Nexpected_clusters: 100                 # How many genomes do you expect, this can be estimated based on single copy marker genes.
+  read_length: 100                        # this should be detected by Atlas in later stages
+
 ########################
 # Quantification
 ########################

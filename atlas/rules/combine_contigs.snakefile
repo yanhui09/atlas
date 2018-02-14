@@ -12,11 +12,13 @@ rule combine_contigs_report:
     input:
         combined_contigs= COMBINED_CONTIGS,
         combined_contigs_stats="contigs/combined_contigs_stats.txt",
+        median_coverage="{folder}/sequence_alignment_{Reference}/combined_median_coverage.tsv".format(Reference='combined_contigs',folder=combined_contigs_folder),
+        gc_stats = "{folder}/combined_contigs_stats_gc.tsv".format(folder=combined_contigs_folder),
+        binned_coverage = "{folder}/sequence_alignment_{Reference}/combined_coverage_binned.tsv.gz".format(Reference='combined_contigs',folder=combined_contigs_folder),
+        # manly used when no binning is performed
         gene_counts= 'contigs/combined_gene_counts.tsv', gene_info= 'contigs/combined_gene_info.tsv',
+
         # annotation= "contigs/annotations.txt",
-        #median_coverage="{folder}/sequence_alignment_{Reference}/combined_median_coverage.tsv".format(Reference='combined_contigs',folder=combined_contigs_folder),
-        #gc_stats = "{folder}/combined_contigs_stats_gc.tsv".format(folder=combined_contigs_folder),
-        #binned_coverage = "{folder}/sequence_alignment_{Reference}/combined_coverage_binned.tsv.gz".format(Reference='combined_contigs',folder=combined_contigs_folder),
         #concoct="{folder}/binning/{file}".format(folder=combined_contigs_folder,file='means_gt2500.csv')
         #bam=expand("{folder}/sequence_alignment_{Reference}/{sample}/{sample}.bam",sample=SAMPLES,Reference='combined_contigs',folder=combined_contigs_folder),
     output:
@@ -296,10 +298,10 @@ if config.get("perform_genome_binning", True):
               expand("{folder}/binning/{file}",folder=combined_contigs_folder,file=['means_gt2500.csv','PCA_components_data_gt2500.csv','original_data_gt2500.csv','PCA_transformed_data_gt2500.csv','pca_means_gt2500.csv','args.txt','responsibilities.csv']),
           params:
               basename= lambda wc,output: os.path.dirname(output[0]),
-              Nexpected_clusters=100,
-              read_length=250,
-              min_length=config.get("concoct_min_contig_length",2500),
-              niterations=config.get("concoct_niterations",500)
+              Nexpected_clusters= config['concoct']['Nexpected_clusters'],
+              read_length= config['concoct']['read_length'],
+              min_length=config["minimum_contig_length"],
+              niterations=config["concoct"]["Niterations"]
           benchmark:
               "logs/benchmarks/binning/concoct.txt"
           log:
@@ -360,30 +362,29 @@ else:
                    -o {output.counts} \
                    {input.bam} 2> {log}"""
 
-rule combine_gene_counts:
-    input:
-        expand("{folder}/sequence_alignment_{Reference}/{sample}/feature_counts/{sample}_counts.txt",
-            sample=SAMPLES,Reference='combined_contigs',folder=combined_contigs_folder)
-    output:
-        'contigs/combined_gene_counts.tsv',
-        'contigs/combined_gene_info.tsv'
-    run:
-        import pandas as pd
-        import os
-        C= {}
+    rule combine_gene_counts:
+        input:
+            expand("{folder}/sequence_alignment_{Reference}/{sample}/feature_counts/{sample}_counts.txt",
+                sample=SAMPLES,Reference='combined_contigs',folder=combined_contigs_folder)
+        output:
+            'contigs/combined_gene_counts.tsv',
+            'contigs/combined_gene_info.tsv'
+        run:
+            import pandas as pd
+            import os
+            C= {}
 
 
 
-        for file in input:
-            D= pd.read_table(file,index_col=0,comment='#')
-            # contigs/sequence_alignment_combined_contigs/S1/S1.bam
-            sample= D.columns[-1].split('/')[-2]
-            C[sample]= D.iloc[:,-1]
-        C= pd.DataFrame(C)
-        C.to_csv(output[0],sep='\t')
+            for file in input:
+                D= pd.read_table(file,index_col=0,comment='#')
+                # contigs/sequence_alignment_combined_contigs/S1/S1.bam
+                sample= D.columns[-1].split('/')[-2]
+                C[sample]= D.iloc[:,-1]
+            C= pd.DataFrame(C)
+            C.to_csv(output[0],sep='\t')
 
-        D.iloc[:,:-1].to_csv(output[1],sep='\t')
-
+            D.iloc[:,:-1].to_csv(output[1],sep='\t')
 
 
 
