@@ -19,7 +19,7 @@ rule combine_contigs_report:
         combined_contigs_stats="contigs/combined_contigs_stats.txt",
         median_coverage="contigs/combined_median_coverage.tsv",
         gc_stats = "contigs/combined_contigs_stats_gc.tsv",
-        binned_coverage = "contgs/combined_coverage_binned.tsv.gz",
+        binned_coverage = "contigs/combined_coverage_binned.tsv.gz",
         gene_counts= expand('annotations/{MAG}/gene_counts.tsv',MAG=MAGs),
         annotations= expand("annotations/{MAG}/annotations.txt",MAG=MAGs)
         #concoct="{folder}/binning/{file}".format(folder=combined_contigs_folder,file='means_gt2500.csv')
@@ -158,7 +158,7 @@ rule align_reads_to_combined_contigs:
 rule pileup_combined_contigs:
     input:
         fasta = "{folder}/{Reference}.fasta",
-        sam=temp("{folder}/sequence_alignment_{Reference}/{sample}.sam"),
+        sam=temp("{folder}/sequence_alignment_{Reference}/{sample}.sam.gz"),
     output:
         covstats = "{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage.txt",
         basecov=temp("{folder}/sequence_alignment_{Reference}/{sample}/{sample}_base_coverage.txt.gz"),
@@ -212,9 +212,9 @@ rule combine_coverages_of_combined_contigs:
         covstats = expand("{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage.txt",
             sample=SAMPLES,Reference='combined_contigs',folder=combined_contigs_folder)
     output:
-        "{folder}/sequence_alignment_{Reference}/combined_median_coverage.tsv".format(Reference='combined_contigs',folder=combined_contigs_folder),
-        "{folder}/sequence_alignment_{Reference}/combined_readcounts.tsv".format(Reference='combined_contigs',folder=combined_contigs_folder),
-        gc_stats = "{folder}/combined_contigs_stats_gc.tsv".format(folder=combined_contigs_folder)
+        "contigs/combined_median_coverage.tsv",
+        "contigs/combined_readcounts.tsv",
+        gc_stats = "contigs/combined_contigs_stats_gc.tsv"
     run:
 
         import pandas as pd
@@ -243,7 +243,7 @@ rule combine_bined_coverages_of_combined_contigs:
         expand("{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage_binned.txt.gz",
             sample=SAMPLES,Reference='combined_contigs',folder=combined_contigs_folder)
     output:
-        "{folder}/sequence_alignment_{Reference}/combined_coverage_binned.tsv.gz".format(Reference='combined_contigs',folder=combined_contigs_folder),
+        "contigs/combined_coverage_binned.tsv.gz",
     run:
 
         import pandas as pd
@@ -300,6 +300,16 @@ if config.get("perform_genome_binning", True):
               """
   else:
         raise NotImplementedError("We don't have implemented the binning method: {}\ntry 'concoct'".format(config['combine_contigs_params']['binner']))
+else:
+    rule analyse_whole_metagenome:
+        input:
+            COMBINED_CONTIGS
+        output:
+            "annotations/metagenome/metagenome_contigs.fasta"
+        shell:
+            """
+                ln -frs {input} {output}
+            """
 
 ### GENE prediction
 
@@ -309,7 +319,6 @@ if config['gene_predicter']=='prokka':
         input:
             "annotations/{MAG}/{MAG}_contigs.fasta"
         output:
-            discrepancy = "annotations/{MAG}/prokka/{MAG}.err",
             faa = "annotations/{MAG}/predicted_genes/genes.faa",
             ffn = "annotations/{MAG}/predicted_genes/genes.ffn",
             fna = "annotations/{MAG}/predicted_genes/genes.fna",
@@ -319,6 +328,7 @@ if config['gene_predicter']=='prokka':
             tbl = "annotations/{MAG}/predicted_genes/genes.tbl",
             tsv = "annotations/{MAG}/predicted_genes/genes.tsv",
             txt = "annotations/{MAG}/predicted_genes/genes.txt"
+#            discrepancy = "annotations/{MAG}/prokka/genes.err",
         benchmark:
             "logs/benchmarks/prokka/{MAG}.txt"
         params:
@@ -331,8 +341,8 @@ if config['gene_predicter']=='prokka':
         shell:
             """prokka --outdir {params.outdir} \
                    --force \
-                   --prefix {wildcards.sample} \
-                   --locustag {wildcards.sample} \
+                   --prefix genes \
+                   --locustag {wildcards.MAG} \
                    --kingdom {params.kingdom} \
                    --metagenome \
                    --cpus {threads} \
@@ -362,9 +372,9 @@ else:
 
 rule update_gene_table:
     input:
-        "annotations/{MAG}/predicted_genes/gene.gff"
+        "annotations/{MAG}/predicted_genes/genes.gff"
     output:
-        "annotations/{MAG}/predicted_genes/gene_plus.tsv"
+        "annotations/{MAG}/predicted_genes/genes_plus.tsv"
     shell:
         """atlas gff2tsv {input} {output}"""
 
@@ -468,7 +478,7 @@ rule MAG_parse_blastp:
                {output}"""
 
 # if config.get("perform_genome_binning", True):
-#     rule merge_sample_tables:
+#     rule MAG_merge_sample_tables:
 #         input:
 #             prokka = "{sample}/annotation/prokka/{sample}_plus.tsv",
 #             refseq = "annotations/{MAG}/refseq/tax_assignments.tsv",#
@@ -491,9 +501,9 @@ rule MAG_parse_blastp:
 #
 #
 # else:
-rule merge_sample_tables:
+rule MAG_merge_sample_tables:
     input:
-        prokka = "annotations/{MAG}/prokka/prokka_plus.tsv",
+        genes = "annotations/{MAG}/predicted_genes/genes_plus.tsv",
         refseq = "annotations/{MAG}/refseq/tax_assignments.tsv",
         counts = "annotations/{MAG}/feature_counts/gene_info.tsv"
     output:
@@ -501,14 +511,14 @@ rule merge_sample_tables:
     shell:
         "atlas merge-tables \
              --counts {input.counts} \
-             {input.prokka} \
+             {input.genes} \
              {input.refseq} \
              {output}"
 
 rule counts_genes:
     input:
         gtf = "annotations/{MAG}/predicted_genes/genes.gtf",
-        bam = unpack(get_bam_combined_contigs_alignemnt)
+        bam = get_bam_combined_contigs_alignemnt
     output:
         summary = "annotations/{MAG}/feature_counts/{sample}_counts.txt.summary",
         counts = "annotations/{MAG}/feature_counts/{sample}_counts.txt"
