@@ -308,7 +308,7 @@ else:
             "annotations/metagenome/metagenome_contigs.fasta"
         shell:
             """
-                ln -frs {input} {output}
+                ln -fs {input} {output}
             """
 
 ### GENE prediction
