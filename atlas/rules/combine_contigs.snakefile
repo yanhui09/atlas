@@ -308,7 +308,7 @@ else:
             "annotations/metagenome/metagenome_contigs.fasta"
         shell:
             """
-                ln -fs ../{input} {output}
+                ln -fs ../../{input} {output}
             """
 # TODO: get absolute path
 ### GENE prediction
