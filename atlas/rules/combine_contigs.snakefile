@@ -280,8 +280,73 @@ if config.get("perform_genome_binning", True):
                   --converge_out \
                   --iterations {params.niterations}
               """
+# TODO: metabat conda recipie :-(
+#     elif config['combine_contigs_params']['binner']=='metabat':
+#         rule get_metabat_deph_file:
+#               input:
+#                     bam= expand("contigs/sequence_alignment_combined_contigs/{sample}/{sample}.bam",sample=SAMPLES)
+#               output:
+#                   expand("{folder}/binning/metabat_depth.txt",folder=combined_contigs_folder)
+#               params:
+#               log:
+#                   "{folder}/binning/metabat.log".format(folder=combined_contigs_folder)
+#               conda:
+#                   "%s/metabat.yaml" % CONDAENV
+#               threads:
+#                   config['threads']
+#               resources:
+#                   mem = config.get("java_mem", JAVA_MEM)
+#               shell:
+#                     """
+#                     jgi_summarize_bam_contig_depths --outputDepth {output} {input.bam} &> >(tee {log})
+#                     """
+#         rule run_metabat:
+#             input:
+#                 coverage= "{folder}/sequence_alignment_{Reference}/combined_median_coverage.tsv".format(Reference='combined_contigs',folder=combined_contigs_folder),
+#                 fasta= "{folder}/{Reference}.fasta".format(Reference='combined_contigs',folder=combined_contigs_folder)
+#             output:
+#                 expand("{folder}/binning/{file}",folder=combined_contigs_folder,file=['means_gt2500.csv','PCA_components_data_gt2500.csv','original_data_gt2500.csv','PCA_transformed_data_gt2500.csv','pca_means_gt2500.csv','args.txt','responsibilities.csv']),
+#             params:
+#                 basename= lambda wc,output: os.path.dirname(output[0]),
+#                 Nexpected_clusters= config['concoct']['Nexpected_clusters'],
+#                 read_length= config['concoct']['read_length'],
+#                 min_length=config["minimum_contig_length"],
+#                 niterations=config["concoct"]["Niterations"]
+#             benchmark:
+#                 "logs/benchmarks/binning/concoct.txt"
+#             log:
+#                 "{folder}/binning/log.txt".format(folder=combined_contigs_folder)
+#             conda:
+#                 "%s/concoct.yaml" % CONDAENV
+#             threads:
+#                 10 # concoct uses 10 threads by default, wit for update: https://github.com/BinPro/CONCOCT/issues/177
+#             resources:
+#                 mem = config.get("java_mem", JAVA_MEM)
+#             shell:
+#
+#
+#
+#     params:
+#     sensitivity = 500 if config['binning_sensitivity']=='sensitive' else 200
+#     output_dir
+#         """
+#         metabat2 -i {input.contigs} \
+#         --abdFile {input.depth_file} \
+#         --minContig {params.min_contig_len} \
+#         --numThreads {threads} \
+#         --saveCls {output.cluster_membership} \
+#         --unbinned \
+#         --maxEdges {params.sensitivity} \
+#         -o {params.output_dir}/bin \
+#         &> >(tee {log})
+#         """
+#
+#
+# https://bitbucket.org/berkeleylab/metabat/wiki/Best%20Binning%20Practices
+
+
   else:
-        raise NotImplementedError("We don't have implemented the binning method: {}\ntry 'concoct'".format(config['combine_contigs_params']['binner']))
+        raise NotImplementedError("We don't have implemented the binning method: {}\ntry [metabat,concoct]".format(config['combine_contigs_params']['binner']))
 
 ### GENE prediction
 
