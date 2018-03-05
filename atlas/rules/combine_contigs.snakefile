@@ -346,10 +346,6 @@ if config.get("perform_genome_binning", True):
 
 
   else:
-<<<<<<< HEAD
-        raise NotImplementedError("We don't have implemented the binning method: {}\ntry [metabat,concoct]".format(config['combine_contigs_params']['binner']))
-
-=======
         raise NotImplementedError("We don't have implemented the binning method: {}\ntry 'concoct'".format(config['combine_contigs_params']['binner']))
 else:
     rule analyse_whole_metagenome:
@@ -362,7 +358,6 @@ else:
                 ln -fs ../../{input} {output}
             """
 # TODO: get absolute path
->>>>>>> 55c490b4ddd14c2239e7126b08e6d5ce1e4a1860
 ### GENE prediction
 
 if config['gene_predicter']=='prokka':
