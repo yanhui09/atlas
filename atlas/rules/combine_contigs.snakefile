@@ -110,7 +110,7 @@ rule align_reads_to_combined_contigs:
         unpack(get_quality_controlled_reads),
         fasta = "{folder}/{Reference}.fasta",
     output:
-        sam = temp("{folder}/sequence_alignment_{Reference}/{sample}.sam.gz"),
+        sam = temp("{folder}/sequence_alignment_{Reference}/{sample}.sam"),
         unmapped= expand("{{folder}}/sequence_alignment_{{Reference}}/unmapped/{{sample}}_unmapped_{fraction}.fastq.gz",fraction= MULTIFILE_FRACTIONS)
     benchmark:
         "logs/benchmarks/sequence_alignment_{Reference}/{sample}.txt"
@@ -185,24 +185,6 @@ rule pileup_combined_contigs:
 
 def get_bam_combined_contigs_alignemnt(wildcards):
     return "contigs/sequence_alignment_combined_contigs/{sample}/{sample}.bam".format(**wildcards)
-
-
-
-rule store_bam:
-    input:
-        "{folder}/sequence_alignment_{Reference}/{sample}.sam.gz"
-    output:
-        "{folder}/sequence_alignment_{Reference}/{sample}/{sample}.bam"
-    conda:
-        "%s/required_packages.yaml" % CONDAENV
-    threads:
-        config.get("threads", 1)
-    resources:
-        mem = config.get("java_mem", JAVA_MEM)
-    shell:
-        """
-        reformat.sh in={input} out={output} -Xmx{resources.mem}G threads={threads}
-        """
 
 
 localrules: combine_coverages_of_combined_contigs, combine_bined_coverages_of_combined_contigs
@@ -338,6 +320,7 @@ if config['gene_predicter']=='prokka':
                    --cpus {threads} \
                    {input}"""
 elif config['gene_predicter']=='prodigal':
+    warnings.warn("gene_predicter=prodigal creates a gff which is not compatibl ewith downstream workflow.\ngenes don't follow naming rule C_0_1 C_0_2")
     rule predict_genes:
         input:
             "annotations/{MAG}/{MAG}_contigs.fasta"
