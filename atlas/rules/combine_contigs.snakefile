@@ -21,7 +21,7 @@ rule combine_contigs_report:
         gc_stats = "contigs/combined_contigs_stats_gc.tsv",
         binned_coverage = "contigs/combined_coverage_binned.tsv.gz",
         gene_counts= expand('annotations/{MAG}/gene_counts.tsv',MAG=MAGs),
-        eggNOG= expand('annotations/{MAG}/predicted_genes/eggNOG_annotation.tsv',MAG=MAGs)
+        eggNOG= expand('annotations/{MAG}/predicted_genes/eggNOG_annotation.tsv',MAG=MAGs),
         annotations= expand("annotations/{MAG}/annotations.txt",MAG=MAGs)
         #concoct="{folder}/binning/{file}".format(folder=combined_contigs_folder,file='means_gt2500.csv')
     output:
@@ -426,12 +426,12 @@ rule update_gene_table:
     shell:
         """atlas gff2tsv {input} {output}"""
 
-localrules: eggNOG_annotation
-rule eggNOG_annotation:
+localrules: renameeggNOG_annotation
+rule renameeggNOG_annotation:
     input:
         "annotations/{MAG}/predicted_genes/genes.emapper.annotations"
     output:
-        "annotations/{MAG}/predicted_genes/eggNOG_annotation.tsv"
+        "annotations/{MAG}/eggNOG_annotation.tsv"
     shell:
         "cp {input} {output}"
 
