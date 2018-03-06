@@ -435,7 +435,7 @@ rule renameeggNOG_annotation:
     shell:
         "cp {input} {output}"
 
-include: "gene_anotation.snakefile"
+include: "gene_annotation.snakefile"
 
 # Taxonomy
 

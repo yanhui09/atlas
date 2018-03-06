@@ -38,7 +38,9 @@ setup(
                        'atlas/envs/concoct.yaml',
                        'atlas/envs/gene_catalog.yaml',
                        'atlas/template_config.yaml',
-                       'atlas/report/qc_report.py'
+                       'atlas/report/qc_report.py',
+                       'atlas/envs/eggNOG.yaml',
+                       'atlas/rules/gene_annotation.snakefile'
                        ]},
     include_package_data=True,
     # install via conda: click, pandas, pyyaml, snakemake
