@@ -10,3 +10,6 @@ include atlas/envs/report.yaml
 include atlas/template_config.yaml
 include atlas/report/qc_report.py
 include atlas/report/report.css
+include atlas/rules/combine_contigs.snakefile
+include atlas/envs/concoct.yaml
+include atlas/envs/gene_catalog.yaml
