@@ -8,6 +8,7 @@
 
 EGGNOG_DIR  = os.path.join(os.path.dirname(os.path.realpath(config.get("diamond_db", "."))), "eggNOG")
 
+prefix= "{folder}/genes"
 
 # rule gene_calling:
 #     input:
@@ -54,18 +55,18 @@ localrules: eggNOG_homology_search
 rule eggNOG_homology_search:
     input:
         "%s/download_eggnog_data.sucess" % EGGNOG_DIR ,
-        faa = "{folder}/genes.faa",
+        faa = prefix+".faa",
     output:
-        temp("{folder}/genes.emapper.seed_orthologs"),
+        temp(prefix+".emapper.seed_orthologs"),
     params:
         data_dir = EGGNOG_DIR,
-        prefix = lambda wc,output: output[0].replace(".emapper.seed_orthologs","")
+        prefix = prefix
     threads:
         config.get("threads", 1)
     conda:
         "%s/eggNOG.yaml" % CONDAENV
     log:
-        lambda wc: "logs/eggNOG/{}/homology_search.log".format(wc.folder.replace('/','_'))
+        "logs/eggNOG/{folder}/homology_search_diamond.log"
     shell:
         """
             emapper.py -m diamond --no_annot --no_file_comments --data_dir {params.data_dir} \
@@ -80,16 +81,16 @@ rule eggNOG_annotation:
         "%s/download_eggnog_data.sucess" % EGGNOG_DIR ,
         seed = rules.eggNOG_homology_search.output
     output:
-        temp("{folder}/genes.emapper.annotations")
+        temp(prefix+".emapper.annotations")
     params:
         data_dir = EGGNOG_DIR,
-        prefix = lambda wc,output: output[0].replace(".emapper.annotations","")
+        prefix = prefix
     threads:
         config.get("threads", 1)
     conda:
         "%s/eggNOG.yaml" % CONDAENV
     log:
-        lambda wc: "logs/eggNOG/{}/homology_search.log".format(wc.folder.replace('/','_'))
+        "logs/eggNOG/{folder}/annotate_hits_table.log"
     shell:
         """
             emapper.py --annotate_hits_table {input.seed} --no_file_comments \
