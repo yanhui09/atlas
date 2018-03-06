@@ -1,16 +1,12 @@
+# input:
+#    {folder}/genes.faa
+#output:
+#   temp({folder}/genes.emapper.annotations)
 
 
-faa = "{sample}/annotation/{sample}_genes.faa"
-
-CONDAENV = "../envs"
 #eggNOG_DATABASES =  ["none"] #bact arch viruses none for only diamond " ".join(config.get("eggNOG_databases", eggNOG_DATABASES))
 
 EGGNOG_DIR  = os.path.join(os.path.dirname(os.path.realpath(config.get("diamond_db", "."))), "eggNOG")
-
-
-rule all:
-    input:
-        "combined/annotation/eggNOG/combined.emapper.annotations"
 
 
 # rule gene_calling:
@@ -34,9 +30,6 @@ rule all:
 
 
 
-
-
-#eggNOG_DATABASES = expand("{data_dir}/{database_files}",data_dir= EGGNOG_DIR,database_files= ["eggnog_proteins.dmnd","eggnog.db","og2level.tsv","OG.fata"
 localrules: download_eggnog_data
 
 rule download_eggnog_data:
@@ -61,9 +54,9 @@ localrules: eggNOG_homology_search
 rule eggNOG_homology_search:
     input:
         "%s/download_eggnog_data.sucess" % EGGNOG_DIR ,
-        faa = faa,
+        faa = "{folder}/genes.faa",
     output:
-        "{sample}/annotation/eggNOG/{sample}.emapper.seed_orthologs",
+        temp("{folder}/genes.emapper.seed_orthologs"),
     params:
         data_dir = EGGNOG_DIR,
         prefix = lambda wc,output: output[0].replace(".emapper.seed_orthologs","")
@@ -72,7 +65,7 @@ rule eggNOG_homology_search:
     conda:
         "%s/eggNOG.yaml" % CONDAENV
     log:
-        "{sample}/logs/eggNOG/homology_search.log"
+        lambda wc: "logs/eggNOG/{}/homology_search.log".format(wc.folder.replace('/','_'))
     shell:
         """
             emapper.py -m diamond --no_annot --no_file_comments --data_dir {params.data_dir} \
@@ -87,7 +80,7 @@ rule eggNOG_annotation:
         "%s/download_eggnog_data.sucess" % EGGNOG_DIR ,
         seed = rules.eggNOG_homology_search.output
     output:
-        "{sample}/annotation/eggNOG/{sample}.emapper.annotations"
+        temp("{folder}/genes.emapper.annotations")
     params:
         data_dir = EGGNOG_DIR,
         prefix = lambda wc,output: output[0].replace(".emapper.annotations","")
@@ -96,7 +89,7 @@ rule eggNOG_annotation:
     conda:
         "%s/eggNOG.yaml" % CONDAENV
     log:
-        "{sample}/logs/eggNOG/annotation.log"
+        lambda wc: "logs/eggNOG/{}/homology_search.log".format(wc.folder.replace('/','_'))
     shell:
         """
             emapper.py --annotate_hits_table {input.seed} --no_file_comments \
