@@ -83,7 +83,7 @@ if "resources" in job_properties:
         elif "walltime" in resources:
             arg_dict["time"] = resources["walltime"]
     if "mem" in resources and arg_dict["mem"] is None:
-        arg_dict["mem"] = resources["mem"]*1e9
+        arg_dict["mem"] = int(resources["mem"]*1e9)
 
 # Threads
 if "threads" in job_properties:
