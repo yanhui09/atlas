@@ -104,7 +104,7 @@ rule combined_contigs_stats:
     shell:
         "stats.sh in={input} format=3 -Xmx{resources.mem}G > {output}"
 
-
+# TODO: this my interfere with a rule in assemble
 rule align_reads_to_combined_contigs:
     input:
         unpack(get_quality_controlled_reads),
@@ -158,7 +158,7 @@ rule align_reads_to_combined_contigs:
 rule pileup_combined_contigs:
     input:
         fasta = "{folder}/{Reference}.fasta",
-        sam=temp("{folder}/sequence_alignment_{Reference}/{sample}.sam.gz"),
+        sam=temp("{folder}/sequence_alignment_{Reference}/{sample}.sam"),
     output:
         covstats = "{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage.txt",
         basecov=temp("{folder}/sequence_alignment_{Reference}/{sample}/{sample}_base_coverage.txt.gz"),
@@ -183,8 +183,7 @@ rule pileup_combined_contigs:
             hist={output.covhist} basecov={output.basecov} physcov secondary={params.pileup_secondary} bincov={output.bincov} 2>> {log}
         """
 
-def get_bam_combined_contigs_alignemnt(wildcards):
-    return "contigs/sequence_alignment_combined_contigs/{sample}/{sample}.bam".format(**wildcards)
+bam_combined_contigs_alignemnt= "contigs/sequence_alignment_combined_contigs/{sample}.bam"
 
 
 localrules: combine_coverages_of_combined_contigs, combine_bined_coverages_of_combined_contigs
@@ -284,7 +283,7 @@ if config.get("perform_genome_binning", True):
 #     elif config['combine_contigs_params']['binner']=='metabat':
 #         rule get_metabat_deph_file:
 #               input:
-#                     bam= expand("contigs/sequence_alignment_combined_contigs/{sample}/{sample}.bam",sample=SAMPLES)
+#                     bam= expand(bam_combined_contigs_alignemnt,sample=SAMPLES)
 #               output:
 #                   expand("{folder}/binning/metabat_depth.txt",folder=combined_contigs_folder)
 #               params:
@@ -566,7 +565,7 @@ rule MAG_merge_sample_tables:
 rule counts_genes:
     input:
         gtf = "annotations/{MAG}/predicted_genes/genes.gtf",
-        bam = get_bam_combined_contigs_alignemnt
+        bam = bam_combined_contigs_alignemnt
     output:
         summary = "annotations/{MAG}/feature_counts/{sample}_counts.txt.summary",
         counts = "annotations/{MAG}/feature_counts/{sample}_counts.txt"
