@@ -60,8 +60,10 @@ rule eggNOG_homology_search:
     params:
         data_dir = EGGNOG_DIR,
         prefix = prefix
+    resources:
+        mem=config["assembly_memory"]
     threads:
-        config.get("threads", 1)
+        config["assembly_threads"]
     conda:
         "%s/eggNOG.yaml" % CONDAENV
     log:
@@ -86,6 +88,8 @@ rule eggNOG_annotation:
         prefix = prefix
     threads:
         config.get("threads", 1)
+    resources:
+        mem=config["java_mem"]
     conda:
         "%s/eggNOG.yaml" % CONDAENV
     log:
