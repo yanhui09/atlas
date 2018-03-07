@@ -49,9 +49,8 @@ rule download_eggnog_data:
         """
             download_eggnog_data.py -y -f -q --data_dir {params.data_dir} {params.dbs}
         """
-
+# TODO: specify ressources and make benchmark
 #HIGHT troughput : split faa in 1Mio faa chunks for next step
-localrules: eggNOG_homology_search
 rule eggNOG_homology_search:
     input:
         "%s/download_eggnog_data.sucess" % EGGNOG_DIR ,
