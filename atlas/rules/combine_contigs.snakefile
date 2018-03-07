@@ -21,9 +21,12 @@ rule combine_contigs_report:
         gc_stats = "contigs/combined_contigs_stats_gc.tsv",
         binned_coverage = "contigs/combined_coverage_binned.tsv.gz",
         gene_counts= expand('annotations/{MAG}/gene_counts.tsv',MAG=MAGs),
-        eggNOG= expand('annotations/{MAG}/predicted_genes/eggNOG_annotation.tsv',MAG=MAGs),
-        annotations= expand("annotations/{MAG}/annotations.txt",MAG=MAGs)
-        #concoct="{folder}/binning/{file}".format(folder=combined_contigs_folder,file='means_gt2500.csv')
+        eggNOG= expand('annotations/{MAG}/eggNOG_annotation.tsv',MAG=MAGs),
+        taxonomy = expand("annotations/{MAG}/refseq/tax_assignments.tsv",MAG=MAGs),
+        gene_info = expand("annotations/{MAG}/feature_counts/gene_info.tsv",MAG=MAGs),
+        # genes = expand("annotations/{MAG}/predicted_genes/genes_plus.tsv",MAG=MAGs), # error in prokka
+        # instead of annotations= expand("annotations/{MAG}/annotations.txt",MAG=MAGs)
+        # concoct="{folder}/binning/{file}".format(folder=combined_contigs_folder,file='means_gt2500.csv')
     output:
         touch("Combined_contigs_done")
 
@@ -245,9 +248,9 @@ rule combine_bined_coverages_of_combined_contigs:
 
 #TODO detect read length automatically.
 if config.get("perform_genome_binning", True):
-  if config['combine_contigs_params']['binner']=='concoct':
+    if config['combine_contigs_params']['binner']=='concoct':
 
-      rule run_concoct:
+        rule run_concoct:
           input:
               coverage= "{folder}/sequence_alignment_{Reference}/combined_median_coverage.tsv".format(Reference='combined_contigs',folder=combined_contigs_folder),
               fasta= "{folder}/{Reference}.fasta".format(Reference='combined_contigs',folder=combined_contigs_folder)
@@ -345,7 +348,7 @@ if config.get("perform_genome_binning", True):
 # https://bitbucket.org/berkeleylab/metabat/wiki/Best%20Binning%20Practices
 
 
-  else:
+    else:
         raise NotImplementedError("We don't have implemented the binning method: {}\ntry 'concoct'".format(config['combine_contigs_params']['binner']))
 else:
     rule analyse_whole_metagenome:
@@ -360,62 +363,64 @@ else:
 # TODO: get absolute path
 ### GENE prediction
 
-if config['gene_predicter']=='prokka':
+# if config['gene_predicter']=='prokka':
+#
+#     rule predict_genes:
+#         input:
+#             "annotations/{MAG}/{MAG}_contigs.fasta"
+#         output:
+#             faa = "annotations/{MAG}/predicted_genes/genes.faa",
+#             ffn = "annotations/{MAG}/predicted_genes/genes.ffn",
+#             fna = "annotations/{MAG}/predicted_genes/genes.fna",
+#             fsa = "annotations/{MAG}/predicted_genes/genes.fsa",
+#             gff = "annotations/{MAG}/predicted_genes/genes.gff",
+#             log = "annotations/{MAG}/predicted_genes/genes.log",
+#             tbl = "annotations/{MAG}/predicted_genes/genes.tbl",
+#             tsv = "annotations/{MAG}/predicted_genes/genes.tsv",
+#             txt = "annotations/{MAG}/predicted_genes/genes.txt"
+# #            discrepancy = "annotations/{MAG}/prokka/genes.err",
+#         benchmark:
+#             "logs/benchmarks/prokka/{MAG}.txt"
+#         params:
+#             outdir = lambda wc, output: os.path.dirname(output.faa),
+#             kingdom = config.get("prokka_kingdom", PROKKA_KINGDOM)
+#         conda:
+#             "%s/required_packages.yaml" % CONDAENV
+#         threads:
+#             config.get("threads", 1)
+#         shell:
+#             """prokka --outdir {params.outdir} \
+#                    --force \
+#                    --prefix genes \
+#                    --locustag {wildcards.MAG} \
+#                    --kingdom {params.kingdom} \
+#                    --metagenome \
+#                    --cpus {threads} \
+#                    {input}
+#             """
 
-    rule predict_genes:
-        input:
-            "annotations/{MAG}/{MAG}_contigs.fasta"
-        output:
-            faa = "annotations/{MAG}/predicted_genes/genes.faa",
-            ffn = "annotations/{MAG}/predicted_genes/genes.ffn",
-            fna = "annotations/{MAG}/predicted_genes/genes.fna",
-            fsa = "annotations/{MAG}/predicted_genes/genes.fsa",
-            gff = "annotations/{MAG}/predicted_genes/genes.gff",
-            log = "annotations/{MAG}/predicted_genes/genes.log",
-            tbl = "annotations/{MAG}/predicted_genes/genes.tbl",
-            tsv = "annotations/{MAG}/predicted_genes/genes.tsv",
-            txt = "annotations/{MAG}/predicted_genes/genes.txt"
-#            discrepancy = "annotations/{MAG}/prokka/genes.err",
-        benchmark:
-            "logs/benchmarks/prokka/{MAG}.txt"
-        params:
-            outdir = lambda wc, output: os.path.dirname(output.faa),
-            kingdom = config.get("prokka_kingdom", PROKKA_KINGDOM)
-        conda:
-            "%s/required_packages.yaml" % CONDAENV
-        threads:
-            config.get("threads", 1)
-        shell:
-            """prokka --outdir {params.outdir} \
-                   --force \
-                   --prefix genes \
-                   --locustag {wildcards.MAG} \
-                   --kingdom {params.kingdom} \
-                   --metagenome \
-                   --cpus {threads} \
-                   {input}"""
-elif config['gene_predicter']=='prodigal':
-    warnings.warn("gene_predicter=prodigal creates a gff which is not compatibl ewith downstream workflow.\ngenes don't follow naming rule C_0_1 C_0_2")
-    rule predict_genes:
-        input:
-            "annotations/{MAG}/{MAG}_contigs.fasta"
-        output:
-            fna="annotations/{MAG}/predicted_genes/genes.fna",
-            faa="annotations/{MAG}/predicted_genes/genes.faa",
-            gff="annotations/{MAG}/predicted_genes/genes.gff"
+# elif config['gene_predicter']=='prodigal':
+warnings.warn("gene_predicter=prodigal creates a gff which is not compatibl ewith downstream workflow.\ngenes don't follow naming rule C_0_1 C_0_2")
+rule predict_genes:
+    input:
+        "annotations/{MAG}/{MAG}_contigs.fasta"
+    output:
+        fna="annotations/{MAG}/predicted_genes/genes.fna",
+        faa="annotations/{MAG}/predicted_genes/genes.faa",
+        gff="annotations/{MAG}/predicted_genes/genes.gff"
 
-        conda:
-            "%s/gene_catalog.yaml" % CONDAENV
-        log:
-            "logs/benchmarks/prodigal/{MAG}.txt"
-        threads:
-            1
-        shell:
-            """
-                prodigal -i {input} -o {output.gff} -d {output.fna} -a {output.faa} -p meta -f gff 2> >(tee {log})
-            """
-else:
-    raise NotADirectoryError("There is no genepredicter iplemented for: {} try one of ['prodigal','prokka']".format(config['gene_predicter']))
+    conda:
+        "%s/gene_catalog.yaml" % CONDAENV
+    log:
+        "logs/benchmarks/prodigal/{MAG}.txt"
+    threads:
+        1
+    shell:
+        """
+            prodigal -i {input} -o {output.gff} -d {output.fna} -a {output.faa} -p meta -f gff 2> >(tee {log})
+        """
+# else:
+#     raise NotADirectoryError("There is no genepredicter iplemented for: {} try one of ['prodigal','prokka']".format(config['gene_predicter']))
 
 
 rule update_gene_table:
