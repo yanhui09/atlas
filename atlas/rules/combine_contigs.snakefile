@@ -9,7 +9,8 @@ from default_values import *
 combined_contigs_folder='contigs'
 
 #### combine contigs
-config['perform_genome_binning']= False
+config['perform_genome_binning']= True
+config['binning_sensitivity']='sensitive'
 MAGs=['metagenome']
 
 
@@ -283,58 +284,59 @@ if config.get("perform_genome_binning", True):
                   --converge_out \
                   --iterations {params.niterations}
               """
-# TODO: metabat conda recipie :-(
-#     elif config['combine_contigs_params']['binner']=='metabat':
-#         rule get_metabat_deph_file:
-#               input:
-#                     bam= expand(bam_combined_contigs_alignemnt,sample=SAMPLES)
-#               output:
-#                   expand("{folder}/binning/metabat_depth.txt",folder=combined_contigs_folder)
-#               params:
-#               log:
-#                   "{folder}/binning/metabat.log".format(folder=combined_contigs_folder)
-#               conda:
-#                   "%s/metabat.yaml" % CONDAENV
-#               threads:
-#                   config['threads']
-#               resources:
-#                   mem = config.get("java_mem", JAVA_MEM)
-#               shell:
-#                     """
-#                     jgi_summarize_bam_contig_depths --outputDepth {output} {input.bam} &> >(tee {log})
-#                     """
-#         rule run_metabat:
-#             input:
-#                 coverage= "{folder}/sequence_alignment_{Reference}/combined_median_coverage.tsv".format(Reference='combined_contigs',folder=combined_contigs_folder),
-#                 fasta= "{folder}/{Reference}.fasta".format(Reference='combined_contigs',folder=combined_contigs_folder)
-#             output:
-#                 cluster_membership="{folder}/binning_cluster_membership.txt".format(folder=combined_contigs_folder),
-#             params:
-#                   sensitivity = 500 if config['binning_sensitivity']=='sensitive' else 200
-#                   output_dir="annotations"
-#             benchmark:
-#                 "logs/benchmarks/binning/metabat.txt"
-#             log:
-#                 "logs/binning/metabat.txt"
-#             conda:
-#                 "%s/metabat.yaml" % CONDAENV
-#             threads:
-#                 config["threads"]
-#             resources:
-#                 mem = config.get("java_mem", JAVA_MEM)
-#             shell:
-#                   """
-#                   metabat2 -i {input.contigs} \
-#                   --abdFile {input.depth_file} \
-#                   --minContig {params.min_contig_len} \
-#                   --numThreads {threads} \
-#                   --saveCls {output.cluster_membership} \
-#                   --unbinned \
-#                   --maxEdges {params.sensitivity} \
-#                   -o {params.output_dir}/bin \
-#                   &> >(tee {log})
-#                   """
-#
+
+    elif config['combine_contigs_params']['binner']=='metabat':
+        rule get_metabat_deph_file:
+              input:
+                    bam= expand(bam_combined_contigs_alignemnt,sample=SAMPLES)
+              output:
+                  expand("{folder}/binning/metabat_depth.txt",folder=combined_contigs_folder)
+              params:
+              log:
+                  "{folder}/binning/metabat.log".format(folder=combined_contigs_folder)
+              conda:
+                  "%s/metabat.yaml" % CONDAENV
+              threads:
+                  config['threads']
+              resources:
+                  mem = config.get("java_mem", JAVA_MEM)
+              shell:
+                    """
+                    jgi_summarize_bam_contig_depths --outputDepth {output} {input.bam} &> >(tee {log})
+                    """
+        rule run_metabat:
+            input:
+                depth_file= "{folder}/binning/metabat_depth.txt".format(folder=combined_contigs_folder),
+                contigs= "{folder}/{Reference}.fasta".format(Reference='combined_contigs',folder=combined_contigs_folder)
+            output:
+                cluster_membership="{folder}/binning_cluster_membership.txt".format(folder=combined_contigs_folder),
+            params:
+                  sensitivity = 500 if config['binning_sensitivity']=='sensitive' else 200,
+                  min_contig_len= config.get("maxbin_min_contig_length", MAXBIN_MIN_CONTIG_LENGTH),
+                  output_dir="annotations"
+            benchmark:
+                "logs/benchmarks/binning/metabat.txt"
+            log:
+                "logs/binning/metabat.txt"
+            conda:
+                "%s/metabat.yaml" % CONDAENV
+            threads:
+                config["threads"]
+            resources:
+                mem = config.get("java_mem", JAVA_MEM)
+            shell:
+                  """
+                  metabat2 -i {input.contigs} \
+                  --abdFile {input.depth_file} \
+                  --minContig {params.min_contig_len} \
+                  --numThreads {threads} \
+                  --saveCls {output.cluster_membership} \
+                  --unbinned \
+                  --maxEdges {params.sensitivity} \
+                  -o {params.output_dir}/bin \
+                  &> >(tee {log})
+                  """
+
 
 # https://bitbucket.org/berkeleylab/metabat/wiki/Best%20Binning%20Practices
 
