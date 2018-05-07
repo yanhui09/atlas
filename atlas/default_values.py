@@ -64,6 +64,8 @@ MAXBIN_MAX_ITERATION = 50
 MAXBIN_MIN_CONTIG_LENGTH = 200
 MAXBIN_PROB_THRESHOLD = 0.9
 
+METABAT_MIN_CONTIG_LENGTH = 2500
+
 DIAMOND_TOP_SEQS = 2
 DIAMOND_E_VALUE = 0.000001
 DIAMOND_MIN_IDENTITY = 50
@@ -175,10 +177,11 @@ def make_default_config():
 
     conf["combine_contigs"] = True
     conf["combine_contigs_params"]=dict(min_overlap = 200,
-                         max_substitutions=4,
+                         max_indels=0,
+                         min_identity=95,
                          dont_allow_N=True,
                          remove_cycles=True,
-                         trim_contradictions=True, #False
+                         trim_contradictions=True,
                          binner='concoct')
     conf['concoct']= {"Niterations":500} #'Nexpected_clusters', 'read_length'
 
