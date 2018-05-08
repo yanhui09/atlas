@@ -355,7 +355,7 @@ if config.get("perform_genome_binning", True):
                               'average_contig_abundance.tsv.gz'])
                 # {folder}/binning/bins/MAG{id}.fasta
             params:
-                outdir=lambda wc,output: os.path.join(os.path.dirname(output[0]),'bins')
+                output_prefix=lambda wc,output: os.path.join(os.path.dirname(output[0]),'bins','Bin')
             log:
                 "logs/binning/analize_metabat_clusters.txt"
             shell:
@@ -364,7 +364,7 @@ if config.get("perform_genome_binning", True):
                     {input.contigs} \
                     {input.cluster_attribution_file} \
                     {input.depth_file} \
-                    {params.outdir} \
+                    {params.output_prefix} \
                     2> >(tee {log})
                 """ % os.path.dirname(os.path.abspath(workflow.snakefile))
 
@@ -773,101 +773,3 @@ rule combine_gene_counts:
         C.to_csv(output[0],sep='\t')
 
         D.iloc[:,:-1].to_csv(output[1],sep='\t')
-
-
-
-
-#### Metabat on indicidual samples_CR
-
-
-rule get_metabat_deph_file:
-      input:
-            bam= "{sample}/sequence_alignment/{sample}.bam"
-      output:
-          "{sample}/binning/metabat/{sample}_contig_coverage.tsv"
-      params:
-      log:
-          "{sample}/binning/get_metabat_deph_file.log".format(folder=combined_contigs_folder)
-      conda:
-          "%s/metabat.yaml" % CONDAENV
-      threads:
-          config['threads']
-      resources:
-          mem = config.get("java_mem", JAVA_MEM)
-      shell:
-            """
-            jgi_summarize_bam_contig_depths --outputDepth {output} {input.bam} &> >(tee {log})
-            """
-rule run_metabat:
-    input:
-        depth_file= rules.get_metabat_deph_file.output[0],
-        contigs= "{sample}/{sample}_contigs.fasta"
-    output:
-        "{sample}/binning/metabat/metabat_cluster_attribution.txt",
-        #{folder}/binning/bin.{id}.fa
-    params:
-          sensitivity = 500 if config['binning_sensitivity']=='sensitive' else 200,
-          min_contig_len= config.get("metabat_min_contig_length", METABAT_MIN_CONTIG_LENGTH),
-          output_prefix= "{folder}/binning/bins/bin".format(folder=combined_contigs_folder)
-    benchmark:
-        "logs/benchmarks/binning/metabat.txt"
-    log:
-        "logs/binning/metabat.log"
-    conda:
-        "%s/metabat.yaml" % CONDAENV
-    threads:
-        config["threads"]
-    resources:
-        mem = config.get("java_mem", JAVA_MEM)
-    shell:
-          """
-          metabat2 -i {input.contigs} \
-          --abdFile {input.depth_file} \
-          --minContig {params.min_contig_len} \
-          --numThreads {threads} \
-          --maxEdges {params.sensitivity} \
-          --saveCls --noBinOut\
-          -o {output} \
-          &> >(tee {log})
-          """
-
-localrules: analize_metabat_clusters
-rule analize_metabat_clusters:
-    input:
-        contigs= "{sample}/{sample}_contigs.fasta",
-        cluster_attribution_file= rules.run_metabat.output[0],
-        depth_file= rules.get_metabat_deph_file.output[0]
-    output:
-        expand("{{sample}}/binning/metabat/{file}",
-               file= ['cluster_attribution.txt',
-                      'contig_stats.tsv',
-                      'cluster_stats.tsv',
-                      'average_cluster_abundance.tsv',
-                      'average_contig_abundance.tsv.gz'])
-        # {folder}/binning/bins/MAG{id}.fasta
-    params:
-        outdir=lambda wc,output: os.path.join(os.path.dirname(output[0]),'bins')
-    log:
-        "logs/binning/analize_metabat_clusters.txt"
-    shell:
-        """
-            python %s/rules/analize_metabat_clusters.py \
-            {input.contigs} \
-            {input.cluster_attribution_file} \
-            {input.depth_file} \
-            {params.outdir} \
-            2> >(tee {log})
-        """ % os.path.dirname(os.path.abspath(workflow.snakefile))
-
-
-# https://bitbucket.org/berkeleylab/metabat/wiki/Best%20Binning%20Practices
-
-rule combine_metabat_files:
-    input:
-        expand("{sample}/binning/metabat/{file}",
-               sample=SAMPLES,
-                       file= ['cluster_attribution.txt',
-                              'contig_stats.tsv',
-                              'cluster_stats.tsv',
-                              'average_cluster_abundance.tsv',
-                              'average_contig_abundance.tsv.gz'])
