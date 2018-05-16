@@ -176,13 +176,13 @@ def make_default_config():
     conf["majority_threshold"] = MAJORITY_THRESHOLD
 
     conf["combine_contigs"] = True
-    conf["combine_contigs_params"]=dict(min_overlap = 200,
-                         max_indels=0,
-                         min_identity=95,
-                         dont_allow_N=True,
+    conf["combine_contigs_params"]=dict(min_overlap = 100,
+                         max_indels=5,
+                         max_missmatch=5,
+                         dont_allow_N=False,
                          remove_cycles=True,
                          trim_contradictions=True,
-                         binner='concoct')
+                         binner='metabat')
     conf['concoct']= {"Niterations":500} #'Nexpected_clusters', 'read_length'
 
     conf['gene_predicter'] = 'prokka'

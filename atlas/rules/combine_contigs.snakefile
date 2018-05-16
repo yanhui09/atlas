@@ -14,6 +14,7 @@ config['binning_sensitivity']='default'
 MAGs=['metagenome']
 
 
+
 rule combine_contigs_report:
     input:
         combined_contigs= COMBINED_CONTIGS,
@@ -21,10 +22,10 @@ rule combine_contigs_report:
         median_coverage="contigs/combined_median_coverage.tsv",
         gc_stats = "contigs/combined_contigs_stats_gc.tsv",
         binned_coverage = "contigs/combined_coverage_binned.tsv.gz",
-        gene_counts= expand('annotations/{MAG}/gene_counts.tsv',MAG=MAGs),
-        eggNOG= expand('annotations/{MAG}/eggNOG_annotation.tsv',MAG=MAGs),
-        taxonomy = expand("annotations/{MAG}/refseq/tax_assignments.tsv",MAG=MAGs),
-        gene_info = expand("annotations/{MAG}/feature_counts/gene_info.tsv",MAG=MAGs),
+        #gene_counts= expand('annotations/{MAG}/gene_counts.tsv',MAG=MAGs),
+        #eggNOG= expand('annotations/{MAG}/eggNOG_annotation.tsv',MAG=MAGs),
+        #taxonomy = expand("annotations/{MAG}/refseq/tax_assignments.tsv",MAG=MAGs),
+        #gene_info = expand("annotations/{MAG}/feature_counts/gene_info.tsv",MAG=MAGs),
         # genes = expand("annotations/{MAG}/predicted_genes/genes_plus.tsv",MAG=MAGs), # error in prokka
         # instead of annotations= expand("annotations/{MAG}/annotations.txt",MAG=MAGs)
         # concoct="{folder}/binning/{file}".format(folder=combined_contigs_folder,file='means_gt2500.csv')
@@ -54,11 +55,11 @@ rule combine_contigs:
        input=lambda wc,input: ','.join(input),
        min_length=config.get("minimum_contig_length", MINIMUM_CONTIG_LENGTH),
        min_overlap=config['combine_contigs_params']['min_overlap'],
-       max_indels=config['combine_contigs_params']['max_indels'],
+       max_indels=config['combine_contigs_params']['max_missmatch'],
+       max_missmatch=config['combine_contigs_params']['max_indels'],
        dont_allow_N= 't' if config['combine_contigs_params']['dont_allow_N'] else 'f',
        remove_cycles='t' if config['combine_contigs_params']['remove_cycles'] else 'f',
        trim_contradictions='t' if config['combine_contigs_params']['trim_contradictions'] else 'f',
-       minidentity=config['combine_contigs_params']['min_identity']
 
     shell:
         """
@@ -69,13 +70,13 @@ rule combine_contigs:
             minoverlap={params.min_overlap}\
             minscaf={params.min_length} \
             e={params.max_indels} \
+            s={params.max_missmatch} \
             threads={threads} \
             sort=length \
             maxspanningtree={params.remove_cycles} \
             exact={params.dont_allow_N}\
             fixcanoncontradictions={params.trim_contradictions}\
             fixoffsetcontradictions={params.trim_contradictions} \
-            minidentity={params.minidentity} \
             -Xmx{resources.mem}G 2> >(tee {log})
         """
 
