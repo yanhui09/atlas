@@ -178,7 +178,7 @@ def make_default_config():
     conf["combine_contigs"] = True
     conf["combine_contigs_params"]=dict(min_overlap = 100,
                          max_indels=5,
-                         max_missmatch=5,
+                         max_mismatch=5,
                          dont_allow_N=False,
                          remove_cycles=True,
                          trim_contradictions=True,
