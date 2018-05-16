@@ -14,12 +14,11 @@ config['binning_sensitivity']='default'
 MAGs=['metagenome']
 
 
-
 rule combine_contigs_report:
     input:
-        combined_contigs= COMBINED_CONTIGS,
-        combined_contigs_stats="contigs/combined_contigs_stats.txt",
-        median_coverage="contigs/combined_median_coverage.tsv",
+        combined_contigs = COMBINED_CONTIGS,
+        combined_contigs_stats = "contigs/combined_contigs_stats.txt",
+        median_coverage = "contigs/combined_median_coverage.tsv",
         gc_stats = "contigs/combined_contigs_stats_gc.tsv",
         binned_coverage = "contigs/combined_coverage_binned.tsv.gz",
         #gene_counts= expand('annotations/{MAG}/gene_counts.tsv',MAG=MAGs),
@@ -33,14 +32,13 @@ rule combine_contigs_report:
         touch("Combined_contigs_done")
 
 
-
 rule combine_contigs:
     input:
         expand("{sample}/{sample}_contigs.fasta",sample=SAMPLES)
     output:
-        combined_contigs=temp("{folder}/combined_contigs_oldnames.fasta"),
-        cluster_stats="{folder}/combined_contigs_kmerfreq.txt",
-        dot="{folder}/combined_contigs_graph.dot"
+        combined_contigs = temp("{folder}/combined_contigs_oldnames.fasta"),
+        cluster_stats = "{folder}/combined_contigs_kmerfreq.txt",
+        dot = "{folder}/combined_contigs_graph.dot"
     benchmark:
         "logs/benchmarks/combine_contigs.txt"
     log:
@@ -52,15 +50,14 @@ rule combine_contigs:
     resources:
         mem = config.get("java_mem", JAVA_MEM)
     params:
-       input=lambda wc,input: ','.join(input),
-       min_length=config.get("minimum_contig_length", MINIMUM_CONTIG_LENGTH),
-       min_overlap=config['combine_contigs_params']['min_overlap'],
-       max_indels=config['combine_contigs_params']['max_missmatch'],
-       max_missmatch=config['combine_contigs_params']['max_indels'],
-       dont_allow_N= 't' if config['combine_contigs_params']['dont_allow_N'] else 'f',
-       remove_cycles='t' if config['combine_contigs_params']['remove_cycles'] else 'f',
-       trim_contradictions='t' if config['combine_contigs_params']['trim_contradictions'] else 'f',
-
+       input = lambda wc, input: ','.join(input),
+       min_length = config.get("minimum_contig_length", MINIMUM_CONTIG_LENGTH),
+       min_overlap = config['combine_contigs_params']['min_overlap'],
+       max_indels = config['combine_contigs_params']['max_indels'],
+       max_mismatch = config['combine_contigs_params']['max_mismatch'],
+       dont_allow_N = 't' if config['combine_contigs_params']['dont_allow_N'] else 'f',
+       remove_cycles = 't' if config['combine_contigs_params']['remove_cycles'] else 'f',
+       trim_contradictions = 't' if config['combine_contigs_params']['trim_contradictions'] else 'f',
     shell:
         """
             dedupe.sh in={params.input} findoverlaps cluster processclusters \
@@ -69,8 +66,8 @@ rule combine_contigs:
             dot={output.dot} \
             minoverlap={params.min_overlap}\
             minscaf={params.min_length} \
-            e={params.max_indels} \
-            s={params.max_missmatch} \
+            maxedits={params.max_indels} \
+            maxsubs={params.max_mismatch} \
             threads={threads} \
             sort=length \
             maxspanningtree={params.remove_cycles} \
@@ -94,7 +91,7 @@ rule rename_combined_contigs:
     conda:
         "%s/required_packages.yaml" % CONDAENV
     params:
-        prefix='C'
+        prefix = 'C'
     shell:
         """rename.sh in={input} out={output} ow=t prefix={params.prefix}"""
 
@@ -120,17 +117,17 @@ rule align_reads_to_combined_contigs:
         fasta = "{folder}/{Reference}.fasta",
     output:
         sam = temp("{folder}/sequence_alignment_{Reference}/{sample}.sam"),
-        unmapped= expand("{{folder}}/sequence_alignment_{{Reference}}/unmapped/{{sample}}_unmapped_{fraction}.fastq.gz",fraction= MULTIFILE_FRACTIONS)
+        unmapped = expand("{{folder}}/sequence_alignment_{{Reference}}/unmapped/{{sample}}_unmapped_{fraction}.fastq.gz", fraction=MULTIFILE_FRACTIONS)
     benchmark:
         "logs/benchmarks/sequence_alignment_{Reference}/{sample}.txt"
     params:
-        input= lambda wc,input : input_params_for_bbwrap(wc,input),
+        input = lambda wc, input: input_params_for_bbwrap(wc, input),
         maxsites = config.get("maximum_counted_map_sites", MAXIMUM_COUNTED_MAP_SITES),
-        unmapped= lambda wc,output: "outu1={0},{2} outu2={1},null".format(*output.unmapped) if PAIRED_END else "outu={0}".format(*output.unmapped),
-        max_distance_between_pairs=config.get('contig_max_distance_between_pairs',CONTIG_MAX_DISTANCE_BETWEEN_PAIRS),
+        unmapped = lambda wc, output: "outu1={0},{2} outu2={1},null".format(*output.unmapped) if PAIRED_END else "outu={0}".format(*output.unmapped),
+        max_distance_between_pairs = config.get('contig_max_distance_between_pairs', CONTIG_MAX_DISTANCE_BETWEEN_PAIRS),
         paired_only = 't' if config.get("contig_map_paired_only", CONTIG_MAP_PAIRED_ONLY) else 'f',
-        ambiguous = 'all' if CONTIG_COUNT_MULTI_MAPPED_READS else'best',
-        min_id= config.get('contig_min_id',CONTIG_MIN_ID),
+        ambiguous = 'all' if CONTIG_COUNT_MULTI_MAPPED_READS else 'best',
+        min_id = config.get('contig_min_id', CONTIG_MIN_ID),
     log:
         "{folder}/logs/sequence_alignment_{Reference}/{sample}.log"
     conda:
@@ -167,14 +164,14 @@ rule align_reads_to_combined_contigs:
 rule pileup_combined_contigs:
     input:
         fasta = "{folder}/{Reference}.fasta",
-        sam=temp("{folder}/sequence_alignment_{Reference}/{sample}.sam"),
+        sam = temp("{folder}/sequence_alignment_{Reference}/{sample}.sam"),
     output:
         covstats = "{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage.txt",
-        basecov=temp("{folder}/sequence_alignment_{Reference}/{sample}/{sample}_base_coverage.txt.gz"),
-        covhist= "{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage_histogram.txt.gz",
-        bincov ="{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage_binned.txt.gz",
+        basecov = temp("{folder}/sequence_alignment_{Reference}/{sample}/{sample}_base_coverage.txt.gz"),
+        covhist = "{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage_histogram.txt.gz",
+        bincov = "{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage_binned.txt.gz",
     params:
-        pileup_secondary='t' if config.get("count_multi_mapped_reads",True) else 'f'
+        pileup_secondary = 't' if config.get("count_multi_mapped_reads",True) else 'f'
     benchmark:
         "logs/benchmarks/pileup_{Reference}/{sample}.txt"
     log:
@@ -192,7 +189,7 @@ rule pileup_combined_contigs:
             hist={output.covhist} basecov={output.basecov} physcov secondary={params.pileup_secondary} bincov={output.bincov} 2>> {log}
         """
 
-bam_combined_contigs_alignemnt= "contigs/sequence_alignment_combined_contigs/{sample}.bam"
+bam_combined_contigs_alignment = "contigs/sequence_alignment_combined_contigs/{sample}.bam"
 
 
 localrules: combine_coverages_of_combined_contigs, combine_bined_coverages_of_combined_contigs
@@ -200,7 +197,7 @@ localrules: combine_coverages_of_combined_contigs, combine_bined_coverages_of_co
 rule combine_coverages_of_combined_contigs:
     input:
         covstats = expand("{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage.txt",
-            sample=SAMPLES,Reference='combined_contigs',folder=combined_contigs_folder)
+            sample=SAMPLES, Reference='combined_contigs', folder=combined_contigs_folder)
     output:
         "contigs/combined_median_coverage.tsv",
         "contigs/combined_readcounts.tsv",
@@ -210,28 +207,28 @@ rule combine_coverages_of_combined_contigs:
         import pandas as pd
         import os
 
-        combined_cov={}
-        combined_N_reads={}
+        combined_cov = {}
+        combined_N_reads = {}
         for cov_file in input:
 
-            sample= os.path.split(cov_file)[-1].split('_')[0]
-            data= pd.read_table(cov_file,index_col=0)
+            sample = os.path.split(cov_file)[-1].split('_')[0]
+            data = pd.read_table(cov_file, index_col=0)
 
             if cov_file == input[0]:
-                data[['Length','Ref_GC']].to_csv(output.gc_stats,sep='\t')
+                data[['Length','Ref_GC']].to_csv(output.gc_stats, sep='\t')
 
-            data.loc[data.Median_fold<0,'Median_fold']=0
-            combined_cov[sample]= data.Median_fold
-            combined_N_reads[sample] = data.Plus_reads+data.Minus_reads
+            data.loc[data.Median_fold < 0, 'Median_fold'] = 0
+            combined_cov[sample] = data.Median_fold
+            combined_N_reads[sample] = data.Plus_reads + data.Minus_reads
 
-        pd.DataFrame(combined_cov).to_csv(output[0],sep='\t')
-        pd.DataFrame(combined_N_reads).to_csv(output[1],sep='\t')
+        pd.DataFrame(combined_cov).to_csv(output[0], sep='\t')
+        pd.DataFrame(combined_N_reads).to_csv(output[1], sep='\t')
 
 
 rule combine_bined_coverages_of_combined_contigs:
     input:
         expand("{folder}/sequence_alignment_{Reference}/{sample}/{sample}_coverage_binned.txt.gz",
-            sample=SAMPLES,Reference='combined_contigs',folder=combined_contigs_folder)
+            sample=SAMPLES, Reference='combined_contigs', folder=combined_contigs_folder)
     output:
         "contigs/combined_coverage_binned.tsv.gz",
     run:
@@ -239,86 +236,104 @@ rule combine_bined_coverages_of_combined_contigs:
         import pandas as pd
         import os
 
-        binCov={}
+        binCov = {}
         for cov_file in input:
 
-            sample= os.path.split(cov_file)[-1].split('_')[0]
+            sample = os.path.split(cov_file)[-1].split('_')[0]
 
-            binCov[sample] = pd.read_table(cov_file,compression='gzip',comment='#',header=None,index_col=[0,2],usecols=[0,1,2],squeeze=True)
+            binCov[sample] = pd.read_table(
+                cov_file,
+                compression='gzip',
+                comment='#',
+                header=None,
+                index_col=[0,2],
+                usecols=[0,1,2],
+                squeeze=True
+            )
 
         binCov = pd.DataFrame(binCov)
-        binCov.index.names=['Contig','Position']
-        binCov.to_csv(output[0],sep='\t',compression='gzip')
+        binCov.index.names = ['Contig','Position']
+        binCov.to_csv(output[0], sep='\t', compression='gzip')
 
 
 #TODO detect read length automatically.
 if config.get("perform_genome_binning", True):
-    if config['combine_contigs_params']['binner']=='concoct':
+    if config['combine_contigs_params']['binner'] == 'concoct':
 
         rule run_concoct:
-          input:
-              coverage= "{folder}/sequence_alignment_{Reference}/combined_median_coverage.tsv".format(Reference='combined_contigs',folder=combined_contigs_folder),
-              fasta= "{folder}/{Reference}.fasta".format(Reference='combined_contigs',folder=combined_contigs_folder)
-          output:
-              expand("{folder}/binning/{file}",folder=combined_contigs_folder,file=['means_gt2500.csv','PCA_components_data_gt2500.csv','original_data_gt2500.csv','PCA_transformed_data_gt2500.csv','pca_means_gt2500.csv','args.txt','responsibilities.csv']),
-          params:
-              basename= lambda wc,output: os.path.dirname(output[0]),
-              Nexpected_clusters= config['concoct']['Nexpected_clusters'],
-              read_length= config['concoct']['read_length'],
-              min_length=config["minimum_contig_length"],
-              niterations=config["concoct"]["Niterations"]
-          benchmark:
-              "logs/benchmarks/binning/concoct.txt"
-          log:
-              "{folder}/binning/log.txt".format(folder=combined_contigs_folder)
-          conda:
-              "%s/concoct.yaml" % CONDAENV
-          threads:
-              10 # concoct uses 10 threads by default, wit for update: https://github.com/BinPro/CONCOCT/issues/177
-          resources:
-              mem = config.get("java_mem", JAVA_MEM)
-          shell:
-              """
-                  concoct -c {params.Nexpected_clusters}\
-                  --coverage_file {input.coverage}\
-                  --composition_file {input.fasta}\
-                  --basename {params.basename}\
-                  --read_length {params.read_length} \
-                  --length_threshold {params.min_length}\
-                  --converge_out \
-                  --iterations {params.niterations}
-              """
+            input:
+                coverage = "{folder}/sequence_alignment_{Reference}/combined_median_coverage.tsv".format(Reference='combined_contigs', folder=combined_contigs_folder),
+                fasta = "{folder}/{Reference}.fasta".format(Reference='combined_contigs', folder=combined_contigs_folder)
+            output:
+                expand("{folder}/binning/{file}",
+                  folder=combined_contigs_folder,
+                    file=['means_gt2500.csv',
+                        'PCA_components_data_gt2500.csv',
+                        'original_data_gt2500.csv',
+                        'PCA_transformed_data_gt2500.csv',
+                        'pca_means_gt2500.csv',
+                        'args.txt',
+                        'responsibilities.csv']
+                ),
+            params:
+                basename= lambda wc,output: os.path.dirname(output[0]),
+                  Nexpected_clusters= config['concoct']['Nexpected_clusters'],
+                  read_length= config['concoct']['read_length'],
+                  min_length=config["minimum_contig_length"],
+                  niterations=config["concoct"]["Niterations"]
+            benchmark:
+                "logs/benchmarks/binning/concoct.txt"
+            log:
+                "{folder}/binning/log.txt".format(folder=combined_contigs_folder)
+            conda:
+                "%s/concoct.yaml" % CONDAENV
+            threads:
+                10 # concoct uses 10 threads by default, wit for update: https://github.com/BinPro/CONCOCT/issues/177
+            resources:
+                mem = config.get("java_mem", JAVA_MEM)
+            shell:
+                """
+                concoct -c {params.Nexpected_clusters}\
+                    --coverage_file {input.coverage}\
+                    --composition_file {input.fasta}\
+                    --basename {params.basename}\
+                    --read_length {params.read_length} \
+                    --length_threshold {params.min_length}\
+                    --converge_out \
+                    --iterations {params.niterations}
+                """
 
     elif config['combine_contigs_params']['binner']=='metabat':
-        rule MAG_get_metabat_deph_file:
-              input:
-                    bam= expand(bam_combined_contigs_alignemnt,sample=SAMPLES)
-              output:
-                  expand("{folder}/binning/metabat_depth.txt",folder=combined_contigs_folder)
-              params:
-              log:
-                  "{folder}/binning/metabat.log".format(folder=combined_contigs_folder)
-              conda:
-                  "%s/metabat.yaml" % CONDAENV
-              threads:
-                  config['threads']
-              resources:
-                  mem = config.get("java_mem", JAVA_MEM)
-              shell:
-                    """
-                    jgi_summarize_bam_contig_depths --outputDepth {output} {input.bam} &> >(tee {log})
-                    """
+        rule MAG_get_metabat_depth_file:
+            input:
+                bam = expand(bam_combined_contigs_alignment, sample=SAMPLES)
+            output:
+                expand("{folder}/binning/metabat_depth.txt", folder=combined_contigs_folder)
+            # params:
+            log:
+                "{folder}/binning/metabat.log".format(folder=combined_contigs_folder)
+            conda:
+                "%s/metabat.yaml" % CONDAENV
+            threads:
+                config['threads']
+            resources:
+                mem = config.get("java_mem", JAVA_MEM)
+            shell:
+                """
+                jgi_summarize_bam_contig_depths --outputDepth {output} {input.bam} &> >(tee {log})
+                """
+
         rule MAG_run_metabat:
             input:
-                depth_file= "{folder}/binning/metabat_depth.txt".format(folder=combined_contigs_folder),
-                contigs= COMBINED_CONTIGS
+                depth_file = "{folder}/binning/metabat_depth.txt".format(folder=combined_contigs_folder),
+                contigs = COMBINED_CONTIGS
             output:
                 "{folder}/binning/metabat_cluster_attribution.txt".format(folder=combined_contigs_folder),
                 #{folder}/binning/bin.{id}.fa
             params:
-                  sensitivity = 500 if config['binning_sensitivity']=='sensitive' else 200,
-                  min_contig_len= config.get("metabat_min_contig_length", METABAT_MIN_CONTIG_LENGTH),
-                  output_prefix= "{folder}/binning/bins/bin".format(folder=combined_contigs_folder)
+                  sensitivity = 500 if config['binning_sensitivity'] == 'sensitive' else 200,
+                  min_contig_len = config.get("metabat_min_contig_length", METABAT_MIN_CONTIG_LENGTH),
+                  output_prefix = "{folder}/binning/bins/bin".format(folder=combined_contigs_folder)
             benchmark:
                 "logs/benchmarks/binning/metabat.txt"
             log:
@@ -341,27 +356,27 @@ if config.get("perform_genome_binning", True):
                   &> >(tee {log})
                   """
 
-        localrules: MAG_analize_metabat_clusters
-        rule MAG_analize_metabat_clusters:
+        localrules: MAG_analyze_metabat_clusters
+        rule MAG_analyze_metabat_clusters:
             input:
-                contigs= COMBINED_CONTIGS,
-                cluster_attribution_file="{folder}/binning/metabat_cluster_attribution.txt".format(folder=combined_contigs_folder),
-                depth_file= "{folder}/binning/metabat_depth.txt".format(folder=combined_contigs_folder)
+                contigs = COMBINED_CONTIGS,
+                cluster_attribution_file = "{folder}/binning/metabat_cluster_attribution.txt".format(folder=combined_contigs_folder),
+                depth_file = "{folder}/binning/metabat_depth.txt".format(folder=combined_contigs_folder)
             output:
-                expand("{folder}/binning/{file}",folder=combined_contigs_folder,
-                       file= ['cluster_attribution.txt',
-                              'contig_stats.tsv',
-                              'cluster_stats.tsv',
-                              'average_cluster_abundance.tsv',
-                              'average_contig_abundance.tsv.gz'])
+                expand("{folder}/binning/{file}", folder=combined_contigs_folder,
+                       file=['cluster_attribution.txt',
+                             'contig_stats.tsv',
+                             'cluster_stats.tsv',
+                             'average_cluster_abundance.tsv',
+                             'average_contig_abundance.tsv.gz'])
                 # {folder}/binning/bins/MAG{id}.fasta
             params:
-                output_prefix=lambda wc,output: os.path.join(os.path.dirname(output[0]),'bins','Bin')
+                output_prefix = lambda wc, output: os.path.join(os.path.dirname(output[0]), 'bins', 'Bin')
             log:
-                "logs/binning/analize_metabat_clusters.txt"
+                "logs/binning/analyze_metabat_clusters.txt"
             shell:
                 """
-                    python %s/rules/analize_metabat_clusters.py \
+                    python %s/rules/analyze_metabat_clusters.py \
                     {input.contigs} \
                     {input.cluster_attribution_file} \
                     {input.depth_file} \
@@ -372,20 +387,20 @@ if config.get("perform_genome_binning", True):
 
 # https://bitbucket.org/berkeleylab/metabat/wiki/Best%20Binning%20Practices
 
-    elif config['combine_contigs_params']['binner']=='maxbin2':
+    elif config['combine_contigs_params']['binner'] == 'maxbin2':
         localrules: make_maxbin_abundance_list
         rule make_maxbin_abundance_list:
             input:
-                 coverage= expand("contigs/sequence_alignment_combined_contigs/{sample}/{sample}_coverage.txt",
-                        sample=SAMPLES)
+                coverage = expand("contigs/sequence_alignment_combined_contigs/{sample}/{sample}_coverage.txt",
+                    sample=SAMPLES)
             output:
-                 abundance_file=expand("contigs/maxbin/contig_coverage/{sample}.tsv", sample=SAMPLES),
-                 abundance_list= temp("contigs/maxbin/contig_coverage.list")
+                abundance_file = expand("contigs/maxbin/contig_coverage/{sample}.tsv", sample=SAMPLES),
+                abundance_list = temp("contigs/maxbin/contig_coverage.list")
             run:
-                with open(output.abundance_list,'w') as outf:
+                with open(output.abundance_list, 'w') as outf:
                     for i in range(len(input)):
                         bb_cov_stats_to_maxbin(input.coverage[i], output.abundance_file[i])
-                        outf.write(os.path.abspath(output.abundance_file[i])+'\n')
+                        outf.write(os.path.abspath(output.abundance_file[i]) + '\n')
 
 
         rule MAG_run_maxbin:
@@ -455,7 +470,7 @@ if config.get("perform_genome_binning", True):
         params:
             bin_dir = lambda wc, input: os.path.join(os.path.dirname(input.bins),"bins"),
             output_dir = lambda wc, output: os.path.dirname(output[0]),
-            fasta_extension ='fasta'
+            fasta_extension = 'fasta'
         conda:
             "%s/optional_genome_binning.yaml" % CONDAENV
         threads:
@@ -492,7 +507,7 @@ if config.get("perform_genome_binning", True):
 
 
 else:
-    rule analyse_whole_metagenome:
+    rule analyze_whole_metagenome:
         input:
             COMBINED_CONTIGS
         output:
@@ -546,10 +561,9 @@ rule predict_genes:
     input:
         "annotations/{MAG}/{MAG}_contigs.fasta"
     output:
-        fna="annotations/{MAG}/predicted_genes/genes.fna",
-        faa="annotations/{MAG}/predicted_genes/genes.faa",
-        gff="annotations/{MAG}/predicted_genes/genes.gff"
-
+        fna = "annotations/{MAG}/predicted_genes/genes.fna",
+        faa = "annotations/{MAG}/predicted_genes/genes.faa",
+        gff = "annotations/{MAG}/predicted_genes/genes.gff"
     conda:
         "%s/gene_catalog.yaml" % CONDAENV
     log:
@@ -571,6 +585,7 @@ rule update_gene_table:
         "annotations/{MAG}/predicted_genes/genes_plus.tsv"
     shell:
         """atlas gff2tsv {input} {output}"""
+
 
 localrules: renameeggNOG_annotation
 rule renameeggNOG_annotation:
@@ -722,7 +737,7 @@ rule MAG_merge_sample_tables:
 rule counts_genes:
     input:
         gtf = "annotations/{MAG}/predicted_genes/genes.gtf",
-        bam = bam_combined_contigs_alignemnt
+        bam = bam_combined_contigs_alignment
     output:
         summary = "annotations/{MAG}/feature_counts/{sample}_counts.txt.summary",
         counts = "annotations/{MAG}/feature_counts/{sample}_counts.txt"
@@ -763,14 +778,14 @@ rule combine_gene_counts:
     run:
         import pandas as pd
         import os
-        C= {}
+        C = {}
 
         for file in input:
-            D= pd.read_table(file,index_col=0,comment='#')
+            D = pd.read_table(file, index_col=0, comment='#')
             # contigs/sequence_alignment_combined_contigs/S1/S1.bam
-            sample= D.columns[-1].split('/')[-2]
-            C[sample]= D.iloc[:,-1]
-        C= pd.DataFrame(C)
-        C.to_csv(output[0],sep='\t')
+            sample = D.columns[-1].split('/')[-2]
+            C[sample] = D.iloc[:,-1]
+        C = pd.DataFrame(C)
+        C.to_csv(output[0], sep='\t')
 
-        D.iloc[:,:-1].to_csv(output[1],sep='\t')
+        D.iloc[:, :-1].to_csv(output[1], sep='\t')
