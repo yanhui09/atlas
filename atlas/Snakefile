@@ -142,13 +142,8 @@ def define_groups(samples):
 
 
 
-
-
-
-
 CONDAENV = get_conda_envs_dir()
-DBDIR = os.path.realpath(config["db_dir"])
-CHECKMDIR = os.path.join(DBDIR, "checkm")
+EGGNOG_DIR = os.path.realpath(config["eggnog_dir"])
 
 if config.get("workflow") != "download":
     config = update_config_file_paths(config)
@@ -178,7 +173,6 @@ if config.get("workflow", "complete") == "qc":
 
 # quality control, assembly, annotation, and quantification
 elif config.get("workflow", "complete") == "complete":
-    # REPORTS = ["reports/QC_report.html", "reports/assembly_report.html"]
     REPORTS += ["reports/assembly_report.html"]
 
     if config.get("perform_genome_binning", True):
@@ -186,32 +180,27 @@ elif config.get("workflow", "complete") == "complete":
         REPORTS.append("reports/bin_report_{binner}.html".format(binner=config['final_binner']))
         include: "rules/binning.snakefile"
 
-
     localrules: all
     rule all:
         input:
             expand("{sample}/sequence_quality_control/finished_QC",
                 sample=SAMPLES),
-            # "finished_QC",
-            expand("{sample}/assembly/contig_stats/prefilter_contig_stats.txt",
-                sample=SAMPLES),
-            expand("{sample}/assembly/contig_stats/final_contig_stats.txt",
-                sample=SAMPLES),
+            expand("{sample}/finished_assembly", sample=SAMPLES),
+            REPORTS,
             expand("{sample}/{sample}_annotations.txt", sample=SAMPLES),
-            expand("{sample}/annotation/eggNOG.tsv", sample=SAMPLES),
-            REPORTS
 
 # checkpoint finished contigs, no annotation
     localrules: finish_assembly
     rule finish_assembly:
         input:
-            expand("{sample}/sequence_quality_control/finished_QC",
-                sample=SAMPLES),
-            expand("{sample}/{sample}_contigs.fasta",
-                sample=SAMPLES),
-            expand("{sample}/sequence_alignment/{sample}.bam",
-                sample=SAMPLES),
-            expand("{sample}/assembly/contig_stats/postfilter_coverage_stats.txt", sample=SAMPLES),
+            "{sample}/sequence_quality_control/finished_QC",
+            "{sample}/{sample}_contigs.fasta",
+            "{sample}/sequence_alignment/{sample}.bam",
+            "{sample}/assembly/contig_stats/postfilter_coverage_stats.txt",
+            "{sample}/assembly/contig_stats/prefilter_contig_stats.txt",
+            "{sample}/assembly/contig_stats/final_contig_stats.txt"
+        output:
+            touch("{sample}/finished_assembly")
 
     include: "rules/assemble.snakefile"
     include: "rules/qc.snakefile"
@@ -225,40 +214,50 @@ elif config.get("workflow", "complete") == "complete":
         rule merge_sample_tables_with_bins:
             # "{sample}/annotation/prokka/{sample}_plus.tsv" or "{sample}/annotation/prokka/{sample}.tsv"
             input:
-                prokka = "{sample}/annotation/predicted_genes/{sample}.tsv",
+                genes = "{sample}/annotation/predicted_genes/{sample}.tsv",
                 refseq = "{sample}/annotation/refseq/{sample}_tax_assignments.tsv",
                 counts = "{sample}/annotation/feature_counts/{sample}_counts.txt",
                 completeness = "{{sample}}/binning/{binner}/checkm/completeness.tsv".format(binner=config['final_binner']),
-                taxonomy = "{{sample}}/binning/{binner}/checkm/taxonomy.tsv".format(binner=config['final_binner'])
+                taxonomy = "{{sample}}/binning/{binner}/checkm/taxonomy.tsv".format(binner=config['final_binner']),
+                eggnog = "{sample}/annotation/eggNOG.tsv"
             output:
                 "{sample}/{sample}_annotations.txt"
             params:
-                fastas = lambda wc: " --fasta ".join(glob("{sample}/binning/checkm/maxbin/{sample}.*.fasta".format(sample=wc.sample)))
+                fastas = lambda wc: " --fasta ".join(glob("{sample}/binning/{binner}/checkm/{sample}.*.fasta".format(sample=wc.sample,binner=config['final_binner'])))
             shell:
-                "atlas merge-tables \
-                     --counts {input.counts} \
-                     --completeness {input.completeness} \
-                     --taxonomy {input.taxonomy} \
-                     --fasta {params.fastas} \
-                     {input.prokka} \
-                     {input.refseq} \
-                     {output}"
+                    #" atlas merge-tables "
+                    # HACK:
+                    "echo "
+                     " --counts {input.counts} "
+                     #" --completeness {input.completeness} "
+                     #" --taxonomy {input.taxonomy} "
+                     " --fasta {params.fastas} "
+                     " --eggnog {input.eggnog} "
+                     " {input.genes} "
+                     " {input.refseq} "
+                     " > "
+                     " {output} "
 
     else:
         rule merge_sample_tables:
             # "{sample}/annotation/prokka/{sample}_plus.tsv" or "{sample}/annotation/prokka/{sample}.tsv"
             input:
-                prokka = "{sample}/annotation/predicted_genes/{sample}.tsv",
+                genes = "{sample}/annotation/predicted_genes/{sample}.tsv",
                 refseq = "{sample}/annotation/refseq/{sample}_tax_assignments.tsv",
                 counts = "{sample}/annotation/feature_counts/{sample}_counts.txt",
+                eggnog =  "{sample}/annotation/eggNOG.tsv"
             output:
                 "{sample}/{sample}_annotations.txt"
             shell:
-                "atlas merge-tables \
-                     --counts {input.counts} \
-                     {input.prokka} \
-                     {input.refseq} \
-                     {output}"
+                    #" atlas merge-tables "
+                    # HACK:
+                    "echo "
+                     " --counts {input.counts} "
+                     " --eggnog {input.eggnog} "
+                     " {input.genes} "
+                     " {input.refseq} "
+                     " > "
+                     " {output} "
 
 
 elif config.get("workflow") == "binning":
@@ -276,6 +275,7 @@ elif config.get("workflow") == "binning":
             expand("{sample}/binning/{binner}/cluster_attribution.tsv",
                    binner=config['binner'], sample =SAMPLES),
             expand("reports/bin_report_{binner}.html", binner=config['final_binner']),
+            "genomes/Dereplication/dereplicated_genomes",
             "genomes/checkm/taxonomy.tsv",
             "genomes/checkm/SSU/ssu_summary.tsv"
 
@@ -288,7 +288,8 @@ elif config.get("workflow") == "binning":
 
 elif config.get("workflow") == "download":
 
-
+    DBDIR = os.path.realpath(config["db_dir"])
+    CHECKMDIR = os.path.join(DBDIR, "checkm")
     CHECKM_ARCHIVE = "checkm_data_v1.0.9.tar.gz"
     # note: saving OG_fasta.tar.gz in order to not create secondary "success" file
     FILES = {"adapters.fa": "ae839dc79cfb855a1b750a0d593fe01e",
@@ -311,15 +312,15 @@ elif config.get("workflow") == "download":
 
     include: "rules/download.snakefile"
 
-elif config.get("workflow") == "annotate":
-    localrules: annotate
-    rule annotate:
-        input:
-            expand("{sample}_annotations.txt", sample=SAMPLES),
-            expand("{sample}/contig_stats.txt", sample=SAMPLES),
-            #"reports/assembly_report.html" # not tested yet, but should work
-
-    include: "rules/annotate.snakefile"
+# elif config.get("workflow") == "annotate":
+#     localrules: annotate
+#     rule annotate:
+#         input:
+#             expand("{sample}_annotations.txt", sample=SAMPLES),
+#             expand("{sample}/contig_stats.txt", sample=SAMPLES),
+#             #"reports/assembly_report.html" # not tested yet, but should work
+#
+#     include: "rules/annotate.snakefile"
 
 else:
     print("Workflow %s is not a defined workflow." % config.get("workflow", "[no --workflow specified]"),
