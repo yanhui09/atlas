@@ -6,6 +6,7 @@ from snakemake.utils import logger, min_version, update_config
 
 from default_values import *
 
+
 # get default values and update them with values specified in config file
 default_config = make_default_config()
 update_config(default_config, config)
@@ -118,6 +119,21 @@ def input_params_for_bbwrap(wildcards, input):
         sys.exit(1)
     return flag
 
+def gen_names_for_range(N,prefix='',start=1):
+    """generates a range of IDS with leading zeros so sorting will be ok"""
+    n_leading_zeros= len(str(N))
+    format_int=prefix+'{:0'+str(n_leading_zeros)+'d}'
+    return [format_int.format(i) for i in range(start,N+start)]
+
+
+
+def gen_names_for_range(N,prefix='',start=1):
+    """generates a range of IDS with leading zeros so sorting will be ok"""
+    n_leading_zeros= len(str(N))
+    format_int=prefix+'{:0'+str(n_leading_zeros)+'d}'
+    return [format_int.format(i) for i in range(start,N+start)]
+
+
 
 def define_groups(samples):
 
@@ -205,6 +221,8 @@ elif config.get("workflow", "complete") == "complete":
     include: "rules/assemble.snakefile"
     include: "rules/qc.snakefile"
     include: "rules/gene_annotation.snakefile"
+    include: "rules/genecatalog.snakefile"
+
 
 # TODO: we should add --eggnog to the 2 merge_sample_tables and integrate it correctly in the function
 
@@ -277,7 +295,10 @@ elif config.get("workflow") == "binning":
             expand("reports/bin_report_{binner}.html", binner=config['final_binner']),
             "genomes/Dereplication/dereplicated_genomes",
             "genomes/checkm/taxonomy.tsv",
-            "genomes/checkm/SSU/ssu_summary.tsv"
+            "genomes/counts/median_coverage_genomes.tsv",
+            "genomes/contig2genome.tsv",
+            "genomes/SSU/ssu_summary.tsv",
+
 
 
 

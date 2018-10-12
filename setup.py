@@ -36,7 +36,6 @@ setup(
             'atlas/rules/binning.snakefile',
             'atlas/rules/gene_annotation.snakefile',
             'atlas/rules/qc.snakefile',
-            'atlas/rules/binning.snakefile',
             'atlas/rules/initialize_checkm.py',
             'atlas/rules/get_fasta_of_bins.py',
             'atlas/envs/checkm.yaml',
