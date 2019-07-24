@@ -21,6 +21,7 @@ rm -rf example_data
 git clone https://github.com/metagenome-atlas/example_data.git
 
 
+ls $reads_dir
 rm -f $WD/samples.tsv
 #
 atlas init --db-dir $databaseDir --threads 4  -w $WD $reads_dir
