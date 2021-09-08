@@ -109,7 +109,7 @@ rule run_concoct:
         "{sample}/binning/concoct/intermediate_files/log.txt",
     conda:
         "%s/concoct.yaml" % CONDAENV
-    threads: 10  # concoct uses 10 threads by default, wit for update: https://github.com/BinPro/CONCOCT/issues/177
+    threads: config["threads"]  # concoct uses all assigned threads
     resources:
         mem=config["mem"],
     shell:
