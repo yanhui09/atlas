@@ -204,16 +204,16 @@ rule run_vamb:
     benchmark:
         "logs/benchmarks/vamb/run_vamb.tsv"
     params:
-        params="-m 2000 ", #TODO: I don't know what this is for # skip contigs < 2kb
-        minfasta=config["cobining_min_contig_length"],
+        mincontig=config["cobining_min_contig_length"], # skip contigs < 2kb
+        minbin=config["cobining_min_bin_size"], # min bin size
         separator= config['cobinning_separator'] + "_"
     shell:
         "vamb --outdir {output} "
-        " --minfasta {params.minfasta} "
+        " -m {params.mincontig} "
+        " --minfasta {params.minbin} "
         " -o '{params.separator}' "
         " --jgi {input.coverage} "
         " --fasta {input.fasta} "
-        " {params.params} "
         "2> {log}"
 
 
