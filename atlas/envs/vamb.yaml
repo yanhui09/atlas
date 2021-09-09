@@ -4,7 +4,11 @@ channels:
     - pytorch
     - defaults
 dependencies:
-    - pytorch
+    - python==3.7.10
+    - pytorch=1.7.1 # v1.9.1 conflicts with vamb on the master branch
     - torchvision
     - cudatoolkit=10.2
-    - vamb
+    #- vamb
+    - pysam
+    - pip:
+       - git+https://github.com/RasmussenLab/vamb@master #https://github.com/RasmussenLab/vamb/issues/60

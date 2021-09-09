@@ -37,7 +37,7 @@ rule filter_contigs:
 
     params:
         min_length= config['cobining_min_contig_length'],
-        prefix= "{sample}{config[cobinning_separator]}",
+        prefix= "{sample}" + config['cobinning_separator'],
         addprefix = "f" if config['cobinning_separator']=='_' else 't'
     log:
         "logs/cobinning/filter_contigs/{sample}.log"
@@ -204,9 +204,9 @@ rule run_vamb:
     benchmark:
         "logs/benchmarks/vamb/run_vamb.tsv"
     params:
-        params="-m 2000 ", #TODO: I don't know what this is for
+        params="-m 2000 ", #TODO: I don't know what this is for # skip contigs < 2kb
         minfasta=config["cobining_min_contig_length"],
-        separator= config['cobinning_separator']
+        separator= config['cobinning_separator'] + "_"
     shell:
         "vamb --outdir {output} "
         " --minfasta {params.minfasta} "
