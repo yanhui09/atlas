@@ -9,7 +9,7 @@ rule semibin_download_gtdb:
     output:
         directory(SEMIBIN_DATA_PATH),
     log:
-        "log/download/Semibin.txt",
+        "logs/download/Semibin.txt",
     conda:
         "../envs/semibin.yaml"
     threads: 1
@@ -33,9 +33,9 @@ rule semibin_predict_taxonomy:
         mem=config["large_mem"],
         time=config["runtime"]["default"],
     log:
-        "log/semibin/predict_taxonomy/{sample}.log",
+        "logs/semibin/predict_taxonomy/{sample}.log",
     benchmark:
-        "log/benchmarks/semibin/predict_taxonomy/{sample}.tsv"
+        "logs/benchmarks/semibin/predict_taxonomy/{sample}.tsv"
     params:
         output_dir= "Cobinning/SemiBin/samples/{sample}",
         name=lambda wc, output: os.path.basename(output[0]).replace('.txt',''),
@@ -66,9 +66,9 @@ rule semibin_generate_data_multi:
         mem=config["mem"],
         time=config["runtime"]["default"],
     log:
-        "log/semibin/generate_data_multi.log",
+        "logs/semibin/generate_data_multi.log",
     benchmark:
-        "log/benchmarks/semibin/generate_data_multi.tsv"
+        "logs/benchmarks/semibin/generate_data_multi.tsv"
     params:
         output_dir="Cobinning/SemiBin",
         separator=config['cobinning_separator'],
@@ -98,9 +98,9 @@ rule semibin_train:
         mem=config["mem"],
         time=config["runtime"]["default"],
     log:
-        "log/semibin/train/{sample}.log",
+        "logs/semibin/train/{sample}.log",
     benchmark:
-        "log/benchmarks/semibin/train/{sample}.tsv"
+        "logs/benchmarks/semibin/train/{sample}.tsv"
     params:
         output_dir=lambda wc, output: os.path.dirname(output[0]),
         extra=" --epoches 20 --mode single ",
@@ -133,9 +133,9 @@ rule run_semibin:
         mem=config["mem"],
         time=config["runtime"]["default"],
     log:
-        "log/semibin/bin/{sample}.log",
+        "logs/semibin/bin/{sample}.log",
     benchmark:
-        "log/benchmarks/semibin/bin/{sample}.tsv"
+        "logs/benchmarks/semibin/bin/{sample}.tsv"
     params:
         output_dir="Cobinning/SemiBin",
         min_bin_kbs= config["cobining_min_bin_size"] // 1000,
