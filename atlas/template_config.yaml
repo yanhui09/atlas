@@ -162,12 +162,6 @@ maxbin:
   prob_threshold: 0.9
   min_contig_length: 1000
 
-concoct:
-  Nexpected_clusters: 400
-  read_length: 150
-  min_contig_length: 1000
-  Niterations: 500
-
 DASTool:
   search_engine: 'diamond'
   score_threshold: 0.5              #Score threshold until selection algorithm will keep selecting bins [0..1].
